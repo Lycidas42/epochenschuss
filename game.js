@@ -16,8 +16,10 @@
   function fresh(name) { const n = J.newState(); n.name = name || (s && s.name) || ''; n.st = { perfect: 0, parts: 0, ups: 0 }; return n; }
   s.st = s.st || { perfect: 0, parts: 0, ups: 0 };
   let sound = store('jushoot-sound') !== false;
-  // Entwickler-Schalter (nur Mock-up), bleiben auf dem Gerät gespeichert
-  const dev = Object.assign({ hitbox: false, fullPreview: false, autoPerfect: false, slowmo: false, info: false, noEvents: false }, store('jushoot-dev') || {});
+  // Entwickler-Version überall außer auf der öffentlichen Seite (github.io): lokal, Claude-Vorschau, Einzeldatei
+  const DEV = !/\.github\.io$/i.test(location.hostname);
+  // Entwickler-Schalter, bleiben auf dem Gerät gespeichert (öffentlich immer aus)
+  const dev = Object.assign({ hitbox: false, fullPreview: false, autoPerfect: false, slowmo: false, info: false, noEvents: false }, DEV ? store('jushoot-dev') || {} : {});
   const away = J.offline(s, Date.now());
 
   // ---------- Ton (WebAudio, ohne Dateien) ----------
@@ -866,7 +868,7 @@
   function showMenu() {
     modal(`<h2>Menü</h2>
       <div class="row"><button class="btn sec" data-menu="sound">Ton: ${sound ? 'an' : 'aus'}</button></div>
-      <h3 style="margin:14px 0 4px">Testmodus (nur im Mock-up)</h3>
+      ${DEV ? `<h3 style="margin:14px 0 4px">Testmodus (nur in der Entwickler-Version)</h3>
       <div class="muted">Zum schnellen Durchprobieren aller Zeitalter.</div>
       <div class="row"><button class="btn sec" data-menu="rich">+ Gold &amp; Teile</button><button class="btn sec" data-menu="break">Nächstes Hindernis zerstören</button><button class="btn sec" data-menu="skip">Zeitalter abschließen</button></div>
       <h3 style="margin:14px 0 4px">Entwickler</h3>
@@ -881,10 +883,10 @@
       </div>
       <div class="dev-toggles">
         ${[['hitbox', 'Trefferzonen anzeigen'], ['fullPreview', 'Ganze Flugbahn zeigen'], ['autoPerfect', 'Immer perfekt auslösen'], ['slowmo', 'Zeitlupe'], ['noEvents', 'Keine Ereignisse'], ['info', 'Debug-Infos']].map(([k, t]) => `<label><input type="checkbox" data-dev="${k}" ${dev[k] ? 'checked' : ''}> ${t}</label>`).join('')}
-      </div>
+      </div>` : ''}
       <h3 style="margin:14px 0 4px">Spielstand</h3>
       <div class="row"><button class="btn sec" data-menu="newplayer">Neuer Spieler</button><button class="btn sec" data-menu="reset" style="background:#8f2f25">Neu beginnen</button></div>
-      <p class="muted" style="margin-top:14px">Epochenschuss · Platzhalter-Grafik. Spielstand liegt nur auf diesem Gerät.</p>
+      <p class="muted" style="margin-top:14px">Epochenschuss${DEV ? ' · Entwickler-Version' : ''} · Spielstand liegt nur auf diesem Gerät.</p>
       <button class="btn" data-close style="width:100%;margin-top:6px">Schließen</button>`);
   }
 
@@ -963,6 +965,7 @@
   $('#btnMenu').addEventListener('click', showMenu);
   $('#modal').addEventListener('change', e => {
     const t = e.target;
+    if (!DEV) return;
     if (t.dataset.dev) { dev[t.dataset.dev] = t.checked; store('jushoot-dev', dev); computePreview(); return; }
     if (t.id === 'devEvent' && t.value) { if (chal) endChallenge(); spawnEvent(t.value); spawnStars(); computePreview(); closeModal(); toast('Ereignis: ' + (view.event.label || t.value)); }
     if (t.id === 'devAge') jumpToAge(+t.value);
@@ -989,6 +992,7 @@
     const tdo = e.target.closest('[data-dotrade]'); if (tdo && !tdo.disabled) { const [i, j] = tdo.dataset.dotrade.split(':').map(Number); const n = J.trade(s, i, j); closeModal(); if (n) { sfx('buy'); toast('Getauscht: ' + ic(j) + ' +' + J.fmtNum(n) + ' ' + esc(J.MATS[j].name)); save(); sig = ''; renderAll(); updateResGrid(true); } return; }
     const m = e.target.closest('[data-menu]'); if (!m) return;
     const k = m.dataset.menu;
+    if (!DEV && !['sound', 'newplayer', 'reset'].includes(k)) return;
     const cost = J.upgCost(s.age, 3, J.P.steps - 1);
     if (k === 'gold10') { s.gold = Math.max(s.gold * 10, cost.gold * 5); toast('Gold: ' + J.fmtNum(s.gold)); }
     if (k === 'mats') { J.MATS.forEach(mt => { s.mats[mt.id] += Math.max(100, cost.mats[mt.id] || 0); }); toast('Teile aufgefüllt'); }

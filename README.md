@@ -112,6 +112,7 @@ Das Grundspiel ist bewusst härter, damit der Zeitsprung der Kern ist. Stand Run
 
 Live unter **https://lycidas42.github.io/epochenschuss/**. Pages veröffentlicht direkt den Branch `main` (Ordner `/`), es gibt keinen Build-Schritt.
 
+- **Zwei Varianten aus demselben Code:** Auf `*.github.io` läuft die öffentliche Version ohne Test- und Entwickler-Menü (Entwickler-Schalter sind dort immer aus). Überall sonst (lokal per `npx http-server`, Claude-Vorschau, `dist/`-Einzeldatei) ist es die Entwickler-Version mit allen Werkzeugen. Gesteuert über `DEV` am Anfang von `game.js`.
 - Bei jeder Veröffentlichung in `sw.js` die `VERSION` erhöhen, damit installierte Apps alte Dateien verwerfen.
 - Neue Dateien, die offline gebraucht werden, in `sw.js` unter `APP` eintragen.
 - Spielstände liegen im `localStorage` des Geräts unter `jushoot-v2` (Bestenliste `jushoot-scores`). Die Schlüssel stammen aus dem Arbeitstitel und bleiben so, damit vorhandene Spielstände erhalten bleiben.
