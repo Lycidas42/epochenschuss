@@ -320,6 +320,18 @@
   function buyPlot(s) { const f = farmOf(s), c = plotCost(s); if (f.plots.length >= FARM_MAX || s.gold < c) return false; s.gold -= c; f.plots.push({ st: 'empty', crop: null, t: 0 }); return true; }
   function buyCrop(s, id) { const f = farmOf(s), c = cropCost(s, id); if (f.crops[id] || s.gold < c) return false; s.gold -= c; f.crops[id] = true; f.sel = id; return true; }
   function buyBot(s, id) { const f = farmOf(s), c = botCost(s, id); if ((f.bots[id] || 0) >= 5 || s.gold < c) return false; s.gold -= c; f.bots[id] = (f.bots[id] || 0) + 1; return true; }
+  // Was auf der Farm gerade zu tun ist (für den Hinweis am Farm-Tab). Schritte, die ein Bot übernimmt, zählen nicht.
+  function farmTodo(s) {
+    const f = s.farm; if (!f) return [];
+    const b = id => (f.bots[id] || 0) > 0, n = st => f.plots.filter(p => p.st === st).length, out = [];
+    const ripe = n('ripe'), dry = n('dry'), empty = n('empty'), seeds = Object.values(f.seeds).reduce((a, x) => a + (x || 0), 0);
+    if (!b('markt') && grainValue(s) >= 1) out.push({ k: 'sell', icon: '💰', txt: 'Ernte verkaufen' });
+    if (!b('ernte') && ripe) out.push({ k: 'ripe', icon: '🌾', txt: ripe + (ripe > 1 ? ' Beete' : ' Beet') + ' ernten' });
+    if (!b('giess') && dry) out.push({ k: 'dry', icon: '💧', txt: dry + (dry > 1 ? ' Beete' : ' Beet') + ' gießen' });
+    if (empty && !b('markt') && !(f.seeds[f.sel] > 0)) out.push({ k: 'seed', icon: '🛒', txt: seeds ? 'Saatgut „' + cropOf(f.sel).name + '“ leer, nachkaufen oder andere Sorte wählen' : 'Saatgut leer, nachkaufen' });
+    else if (empty && !b('saer') && f.seeds[f.sel] > 0) out.push({ k: 'sow', icon: '🌱', txt: empty + (empty > 1 ? ' Beete' : ' Beet') + ' frei, säen' });
+    return out;
+  }
   // Wachsen und Bots; gibt die Handgriffe der Bots zurück (für die Animation)
   function tickFarm(s, dt, noBots) {
     const f = farmOf(s), acts = [];
@@ -541,6 +553,6 @@
     return nf(n / 1e9, 2) + ' Mrd.';
   }
 
-  root.JS = { CROPS, BOTS, FARM_MAX, SEED_PACK, farmOf, cropOf, seedCost, sellPrice, plotCost, cropCost, botCost, farmAct, grainValue, farmSell, buySeeds, buyPlot, buyCrop, buyBot, tickFarm, W, AMMO, AMMO_PACK, ammoCost, buyAmmo, takeAmmo, goldUnit, SHRINE, shrineSum, shrineOffers, shrineCost, buyShrine, rerollCost, rerollShrines, shrineText, trainBonus, trainReward, WORKSHOP, wsList, wsBuy, wsCost, splitterFor, jumpPreview, jumpUnlocked, rebirth, migrate, newMeta, startGold, workers, P, LINES, AGES, MATS, OBS, CHALLENGES, newState, stats, quality, shotGold, obsState, obsDone, nextBlocking, ageObstaclesDone,
+  root.JS = { farmTodo, CROPS, BOTS, FARM_MAX, SEED_PACK, farmOf, cropOf, seedCost, sellPrice, plotCost, cropCost, botCost, farmAct, grainValue, farmSell, buySeeds, buyPlot, buyCrop, buyBot, tickFarm, W, AMMO, AMMO_PACK, ammoCost, buyAmmo, takeAmmo, goldUnit, SHRINE, shrineSum, shrineOffers, shrineCost, buyShrine, rerollCost, rerollShrines, shrineText, trainBonus, trainReward, WORKSHOP, wsList, wsBuy, wsCost, splitterFor, jumpPreview, jumpUnlocked, rebirth, migrate, newMeta, startGold, workers, P, LINES, AGES, MATS, OBS, CHALLENGES, newState, stats, quality, shotGold, obsState, obsDone, nextBlocking, ageObstaclesDone,
     upgCost, upgList, canAfford, buy, tapPower, upgradesDone, canAgeUp, ageUp, resInfo, tap, resAction, tickRes, canTrade, tradeRate, trade, neededMats, offline, bonusText, chBonus, chalFor, ageRange, partLevel, partPos, fmtKm, fmtNum };
 })(typeof window !== 'undefined' ? window : globalThis);
