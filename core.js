@@ -294,7 +294,8 @@
     { id: 'saer',  name: 'Säe-Bot',     base: 25, desc: 'sät auf leeren Beeten (braucht Saatgut)' },
     { id: 'giess', name: 'Gieß-Bot',    base: 15, desc: 'gießt frisch gesäte Beete' },
     { id: 'ernte', name: 'Ernte-Bot',   base: 35, desc: 'erntet reife Beete' },
-    { id: 'markt', name: 'Händler-Bot', base: 80, desc: 'verkauft die Ernte und kauft Saatgut nach' },
+    { id: 'markt', name: 'Händler-Bot', base: 80, desc: 'verkauft die Ernte' },
+    { id: 'saat',  name: 'Saatgut-Bot', base: 20, desc: 'kauft das ausgewählte Saatgut nach' },
   ];
   const FARM_MAX = 12, FARM_START = 3, SEED_PACK = 5;
   function newFarm() { return { plots: Array.from({ length: FARM_START }, () => ({ st: 'empty', crop: null, t: 0 })), seeds: { weizen: 6 }, grain: {}, crops: { weizen: true }, sel: 'weizen', bots: {}, botT: {}, sold: 0 }; }
@@ -306,6 +307,11 @@
   const plotCost = s => Math.round(4 * fUnit(s) * Math.pow(1.45, farmOf(s).plots.length - FARM_START));
   const cropCost = (s, id) => Math.round(cropOf(id).unlock * fUnit(s));
   const botCost = (s, id) => { const b = BOTS.find(x => x.id === id), lv = farmOf(s).bots[id] || 0; return Math.round(b.base * fUnit(s) * Math.pow(2.2, lv)); };
+  // Dünger: Pflanzen wachsen schneller (+30 % Tempo je Stufe, max. 5)
+  const FERT_MAX = 5;
+  const growSpeed = s => 1 + 0.3 * (farmOf(s).fert || 0);
+  const fertCost = s => Math.round(15 * fUnit(s) * Math.pow(2.6, farmOf(s).fert || 0));
+  function buyFert(s) { const f = farmOf(s), c = fertCost(s); if ((f.fert || 0) >= FERT_MAX || s.gold < c) return false; s.gold -= c; f.fert = (f.fert || 0) + 1; return true; }
   const botEvery = lv => 3 / lv; // Sekunden je Handgriff eines Bots
   function farmAct(s, i) { // Handarbeit am Beet: macht den nächsten nötigen Schritt
     const f = farmOf(s), p = f.plots[i]; if (!p) return null;
@@ -328,14 +334,15 @@
     if (!b('markt') && grainValue(s) >= 1) out.push({ k: 'sell', icon: '💰', txt: 'Ernte verkaufen' });
     if (!b('ernte') && ripe) out.push({ k: 'ripe', icon: '🌾', txt: ripe + (ripe > 1 ? ' Beete' : ' Beet') + ' ernten' });
     if (!b('giess') && dry) out.push({ k: 'dry', icon: '💧', txt: dry + (dry > 1 ? ' Beete' : ' Beet') + ' gießen' });
-    if (empty && !b('markt') && !(f.seeds[f.sel] > 0)) out.push({ k: 'seed', icon: '🛒', txt: seeds ? 'Saatgut „' + cropOf(f.sel).name + '“ leer, nachkaufen oder andere Sorte wählen' : 'Saatgut leer, nachkaufen' });
+    if (empty && !b('saat') && !(f.seeds[f.sel] > 0)) out.push({ k: 'seed', icon: '🛒', txt: seeds ? 'Saatgut „' + cropOf(f.sel).name + '“ leer, nachkaufen oder andere Sorte wählen' : 'Saatgut leer, nachkaufen' });
     else if (empty && !b('saer') && f.seeds[f.sel] > 0) out.push({ k: 'sow', icon: '🌱', txt: empty + (empty > 1 ? ' Beete' : ' Beet') + ' frei, säen' });
     return out;
   }
   // Wachsen und Bots; gibt die Handgriffe der Bots zurück (für die Animation)
   function tickFarm(s, dt, noBots) {
     const f = farmOf(s), acts = [];
-    f.plots.forEach(p => { if (p.st === 'grow') { p.t += dt; if (p.t >= cropOf(p.crop).time) p.st = 'ripe'; } });
+    const gs = growSpeed(s);
+    f.plots.forEach(p => { if (p.st === 'grow') { p.t += dt * gs; if (p.t >= cropOf(p.crop).time) p.st = 'ripe'; } });
     if (noBots) return acts;
     BOTS.forEach(b => {
       const lv = f.bots[b.id] || 0; if (!lv) return;
@@ -345,6 +352,9 @@
         f.botT[b.id] -= botEvery(lv);
         if (b.id === 'markt') {
           if (grainValue(s) >= 1) acts.push({ bot: b.id, i: -1, gold: farmSell(s) });
+          continue;
+        }
+        if (b.id === 'saat') {
           const need = f.plots.filter(p => p.st === 'empty').length - (f.seeds[f.sel] || 0);
           if (need > 0) { const packs = Math.ceil(need / SEED_PACK); if (buySeeds(s, f.sel, packs)) acts.push({ bot: b.id, i: -1, seeds: packs * SEED_PACK }); }
           continue;
@@ -379,6 +389,7 @@
     if (!s.meta.skins) s.meta.skins = {};
     if (s.runRec == null) s.runRec = s.record || 0;
     if (!s.ammo) { s.ammo = {}; s.ammoSel = 'kugel'; }
+    if (s.farm && s.farm.bots.markt && !s.farm.bots.saat) s.farm.bots.saat = 1; // Händler-Bot kaufte früher auch Saatgut: das macht jetzt der Saatgut-Bot
     if (!s.shrines) s.shrines = [];
     if (!s.meta.train) s.meta.train = { n: 0, dmg: 0, range: 0, gold: 0 };
     return s;
@@ -553,6 +564,6 @@
     return nf(n / 1e9, 2) + ' Mrd.';
   }
 
-  root.JS = { farmTodo, CROPS, BOTS, FARM_MAX, SEED_PACK, farmOf, cropOf, seedCost, sellPrice, plotCost, cropCost, botCost, farmAct, grainValue, farmSell, buySeeds, buyPlot, buyCrop, buyBot, tickFarm, W, AMMO, AMMO_PACK, ammoCost, buyAmmo, takeAmmo, goldUnit, SHRINE, shrineSum, shrineOffers, shrineCost, buyShrine, rerollCost, rerollShrines, shrineText, trainBonus, trainReward, WORKSHOP, wsList, wsBuy, wsCost, splitterFor, jumpPreview, jumpUnlocked, rebirth, migrate, newMeta, startGold, workers, P, LINES, AGES, MATS, OBS, CHALLENGES, newState, stats, quality, shotGold, obsState, obsDone, nextBlocking, ageObstaclesDone,
+  root.JS = { FERT_MAX, growSpeed, fertCost, buyFert, farmTodo, CROPS, BOTS, FARM_MAX, SEED_PACK, farmOf, cropOf, seedCost, sellPrice, plotCost, cropCost, botCost, farmAct, grainValue, farmSell, buySeeds, buyPlot, buyCrop, buyBot, tickFarm, W, AMMO, AMMO_PACK, ammoCost, buyAmmo, takeAmmo, goldUnit, SHRINE, shrineSum, shrineOffers, shrineCost, buyShrine, rerollCost, rerollShrines, shrineText, trainBonus, trainReward, WORKSHOP, wsList, wsBuy, wsCost, splitterFor, jumpPreview, jumpUnlocked, rebirth, migrate, newMeta, startGold, workers, P, LINES, AGES, MATS, OBS, CHALLENGES, newState, stats, quality, shotGold, obsState, obsDone, nextBlocking, ageObstaclesDone,
     upgCost, upgList, canAfford, buy, tapPower, upgradesDone, canAgeUp, ageUp, resInfo, tap, resAction, tickRes, canTrade, tradeRate, trade, neededMats, offline, bonusText, chBonus, chalFor, ageRange, partLevel, partPos, fmtKm, fmtNum };
 })(typeof window !== 'undefined' ? window : globalThis);

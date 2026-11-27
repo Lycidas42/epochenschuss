@@ -4,7 +4,7 @@
   const J = window.JS;
   const $ = q => document.querySelector(q);
   const SAVE = 'jushoot-v2', SCORES = 'jushoot-scores';
-  const VERSION = '0.7.3'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
+  const VERSION = '0.7.4'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
   const G = 9.81e-3; // km/s²
 
   // ---------- Speichern ----------
@@ -858,6 +858,7 @@
     else if (d.fseed) { if (J.buySeeds(s, d.fseed, +d.n || 1)) sfx('buy'); }
     else if (d.fplot != null) { if (J.buyPlot(s)) sfx('buy'); }
     else if (d.fcrop) { if (J.buyCrop(s, d.fcrop)) { sfx('up'); toast('Neue Sorte: ' + CROP_IC[d.fcrop] + ' <b>' + esc(J.cropOf(d.fcrop).name) + '</b>'); } }
+    else if (d.ffert != null) { if (J.buyFert(s)) { sfx('up'); toast('🧪 Dünger Stufe ' + f.fert + ': Pflanzen wachsen ' + Math.round((J.growSpeed(s) - 1) * 100) + ' % schneller'); } }
     else if (d.fbot) { if (J.buyBot(s, d.fbot)) { sfx('up'); const bd = J.BOTS.find(x => x.id === d.fbot); toast('🤖 ' + esc(bd.name) + ' Stufe ' + f.bots[d.fbot]); } }
     save(); farmSig = ''; renderFarm(); renderHud();
   }
@@ -873,7 +874,7 @@
   }
   function renderFarm() {
     const f = s.farm; if (!f || !farmR) return;
-    const val = J.grainValue(s), sig = JSON.stringify([J.farmTodo(s).map(x => x.txt).join(), f.sel, f.seeds, f.grain, f.crops, f.bots, f.plots.length, Math.floor(s.gold)]);
+    const val = J.grainValue(s), sig = JSON.stringify([J.farmTodo(s).map(x => x.txt).join(), f.sel, f.seeds, f.grain, f.crops, f.bots, f.plots.length, f.fert, Math.floor(s.gold)]);
     if (sig === farmSig) return; farmSig = sig;
     const mine = J.CROPS.filter(c => f.crops[c.id]);
     const todo = J.farmTodo(s);
@@ -882,13 +883,16 @@
     const inv = Object.keys(f.grain).filter(k => f.grain[k] > 0).map(k => CROP_IC[k] + ' ' + f.grain[k]).join(' · ');
     h += `<div class="card farm-store"><div class="info"><b>Lager</b> <span class="muted">${inv || 'noch leer'}</span></div><button class="btn ready-sell" data-fsell ${val >= 1 ? '' : 'disabled'}>Verkaufen ${COIN()} ${J.fmtNum(val)}</button></div>`;
     const cr = J.cropOf(f.sel), sc = J.seedCost(s, f.sel);
-    h += `<div class="card upg"><div class="ammo-ic">${CROP_IC[f.sel]}</div><div class="info"><div class="name">Saatgut: ${esc(cr.name)}</div><div class="muted">wächst ${cr.time} s · bringt je Beet ${COIN()} ${J.fmtNum(Math.max(1, J.sellPrice(s, f.sel)))}</div></div>
+    h += `<div class="card upg"><div class="ammo-ic">${CROP_IC[f.sel]}</div><div class="info"><div class="name">Saatgut: ${esc(cr.name)}</div><div class="muted">wächst ${Math.round(cr.time / J.growSpeed(s))} s · bringt je Beet ${COIN()} ${J.fmtNum(Math.max(1, J.sellPrice(s, f.sel)))}</div></div>
       <div class="col-btns"><button class="btn" data-fseed="${f.sel}" data-n="1" ${s.gold >= sc ? '' : 'disabled'}>${J.SEED_PACK}× ${COIN()} ${J.fmtNum(sc)}</button><button class="btn sec" data-fseed="${f.sel}" data-n="4" ${s.gold >= sc * 4 ? '' : 'disabled'}>${J.SEED_PACK * 4}× ${COIN()} ${J.fmtNum(sc * 4)}</button></div></div>`;
     if (f.plots.length < J.FARM_MAX) { const pc = J.plotCost(s); h += `<div class="card upg"><div class="ammo-ic">🟫</div><div class="info"><div class="name">Neues Beet <span class="muted">· ${f.plots.length}/${J.FARM_MAX}</span></div><div class="muted">Mehr Beete, mehr Ernte.</div></div><button class="btn" data-fplot ${s.gold >= pc ? '' : 'disabled'}>${COIN()} ${J.fmtNum(pc)}</button></div>`; }
+    { const fl = f.fert || 0, fc = J.fertCost(s);
+      h += `<div class="card upg"><div class="ammo-ic">🧪</div><div class="info"><div class="name">Dünger <span class="muted">· ${fl ? 'Stufe ' + fl + '/' + J.FERT_MAX : 'nicht gekauft'}</span></div><div class="muted">Saat wächst schneller: ${fl ? '+' + Math.round(fl * 30) + ' %' : 'normal'}${fl < J.FERT_MAX ? ', nächste Stufe +' + Math.round((fl + 1) * 30) + ' %' : ''}</div></div>
+        ${fl >= J.FERT_MAX ? '<span>✅</span>' : `<button class="btn" data-ffert ${s.gold >= fc ? '' : 'disabled'}>${COIN()} ${J.fmtNum(fc)}</button>`}</div>`; }
     h += '<h4 class="sub">Sorten</h4>';
     J.CROPS.forEach(c => {
       if (f.crops[c.id]) return; const cc = J.cropCost(s, c.id);
-      h += `<div class="card upg"><div class="ammo-ic">${CROP_IC[c.id]}</div><div class="info"><div class="name">${esc(c.name)}</div><div class="muted">wächst ${c.time} s · bringt je Beet ${COIN()} ${J.fmtNum(Math.max(1, J.sellPrice(s, c.id)))}</div></div><button class="btn" data-fcrop="${c.id}" ${s.gold >= cc ? '' : 'disabled'}>${COIN()} ${J.fmtNum(cc)}</button></div>`;
+      h += `<div class="card upg"><div class="ammo-ic">${CROP_IC[c.id]}</div><div class="info"><div class="name">${esc(c.name)}</div><div class="muted">wächst ${Math.round(c.time / J.growSpeed(s))} s · bringt je Beet ${COIN()} ${J.fmtNum(Math.max(1, J.sellPrice(s, c.id)))}</div></div><button class="btn" data-fcrop="${c.id}" ${s.gold >= cc ? '' : 'disabled'}>${COIN()} ${J.fmtNum(cc)}</button></div>`;
     });
     h += '<h4 class="sub">Bots</h4>';
     J.BOTS.forEach(bd => {

@@ -81,7 +81,7 @@ Eigene Ansicht: Zielscheiben und Puppen auf dem Übungsplatz abschießen. Jedes 
 
 ## Farm
 
-Zweite Welt, umschaltbar oben. Per Hand **säen, gießen, ernten** (Beet antippen), Ernte am Marktstand **verkaufen** (viel Gold). Kaufen: Saatgut (5er-Packs), neue Beete (3 bis 12), neue Sorten (Weizen, Mais, Kürbis, Sonnenblume, Goldähre; länger wachsend, aber lohnender) und Bots (Säe-, Gieß-, Ernte-, Händler-Bot). Pflanzen wachsen auch offline, Bots arbeiten nur bei offenem Spiel. Die Farm gehört zum Lauf und ist nach einem Zeitsprung weg. Ein roter Zähler am Farm-Tab (auch aus der Kanonen-Ansicht sichtbar) zeigt, wenn etwas zu tun ist: verkaufen, ernten, gießen, säen oder Saatgut nachkaufen. Schritte, die ein gekaufter Bot übernimmt, zählen nicht. In der Farm steht die Liste unter „Zu tun“.
+Zweite Welt, umschaltbar oben. Per Hand **säen, gießen, ernten** (Beet antippen), Ernte am Marktstand **verkaufen** (viel Gold). Kaufen: Saatgut (5er-Packs), neue Beete (3 bis 12), neue Sorten (Weizen, Mais, Kürbis, Sonnenblume, Goldähre; länger wachsend, aber lohnender) Bots (Säe-, Gieß-, Ernte-, Händler-Bot und Saatgut-Bot, der das gewählte Saatgut nachkauft) und 🧪 Dünger (5 Stufen, je +30 % Wachstumstempo). Pflanzen wachsen auch offline, Bots arbeiten nur bei offenem Spiel. Die Farm gehört zum Lauf und ist nach einem Zeitsprung weg. Ein roter Zähler am Farm-Tab (auch aus der Kanonen-Ansicht sichtbar) zeigt, wenn etwas zu tun ist: verkaufen, ernten, gießen, säen oder Saatgut nachkaufen. Schritte, die ein gekaufter Bot übernimmt, zählen nicht. In der Farm steht die Liste unter „Zu tun“.
 
 ## Zeitsprung (Rebirth)
 

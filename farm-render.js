@@ -4,7 +4,7 @@
   const TAU = Math.PI * 2;
   function rr(c, x, y, w, h, r) { c.beginPath(); c.roundRect ? c.roundRect(x, y, w, h, r) : c.rect(x, y, w, h); }
   const hsh = n => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
-  const BOT_COL = { saer: '#5ee07a', giess: '#4bb8ff', ernte: '#ff8a3d', markt: '#ffd23f' };
+  const BOT_COL = { saer: '#5ee07a', giess: '#4bb8ff', ernte: '#ff8a3d', markt: '#ffd23f', saat: '#c9a0ff' };
 
   function makeFarmRenderer(canvas) {
     const c = canvas.getContext('2d');
@@ -180,7 +180,7 @@
       // Bots
       J.BOTS.forEach((bd, k) => {
         if (!f.bots[bd.id]) { delete bots[bd.id]; return; }
-        const home = bd.id === 'markt' ? [0.32 + 0.045, 0.2] : [0.45 + k * 0.08, 0.16];
+        const home = bd.id === 'markt' ? [0.32 + 0.045, 0.2] : bd.id === 'saat' ? [0.32 - 0.03, 0.2] : [0.45 + k * 0.08, 0.16];
         const b = bots[bd.id] || (bots[bd.id] = { x: home[0], y: home[1], tx: home[0], ty: home[1], ph: k * 2, work: 0 });
         if (b.work > 0) b.work -= dt; else { b.tx = home[0]; b.ty = home[1]; }
         b.x += (b.tx - b.x) * Math.min(1, dt * 4); b.y += (b.ty - b.y) * Math.min(1, dt * 4);
