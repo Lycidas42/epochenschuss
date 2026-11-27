@@ -4,7 +4,7 @@
   const J = window.JS;
   const $ = q => document.querySelector(q);
   const SAVE = 'jushoot-v2', SCORES = 'jushoot-scores';
-  const VERSION = '0.7.0'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
+  const VERSION = '0.7.1'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
   const G = 9.81e-3; // km/s²
 
   // ---------- Speichern ----------
@@ -108,6 +108,7 @@
     if (blk && blk.at < st.range * 2.2) { xMax = Math.max(xMax, blk.end * 1.12); yMax = Math.max(yMax, blk.top * 1.4); }
     view.stars.forEach(t => { xMax = Math.max(xMax, t.x * 1.08); yMax = Math.max(yMax, t.y * 1.15); });
     const e = view.event;
+    if (e && e.type === 'bird' && !e.got) { xMax = Math.max(xMax, e.cx * 1.15); yMax = Math.max(yMax, e.cy * 1.35); }
     if (e && e.type === 'bonusAir') { xMax = Math.max(xMax, e.x * 1.1); yMax = Math.max(yMax, e.y * 1.3); }
     if (e && (e.type === 'bonusGround' || e.type === 'mole' || e.type === 'plant')) xMax = Math.max(xMax, e.at * 1.1);
     if (e && e.type === 'plant') yMax = Math.max(yMax, e.h * 1.6);
@@ -152,6 +153,7 @@
     { type: 'stars',       w: 2, good: true,  icon: '✨', name: 'Sternenregen', desc: 'doppelt so viele Sterne' },
     { type: 'mole',        w: 2, good: true,  icon: '🐾', name: 'Maulwurf',     desc: 'stößt gelandete Kugeln wieder hoch' },
     { type: 'plant',       w: 2, good: false, icon: '🌿', name: 'Schnapppflanze', desc: 'fängt tief fliegende Kugeln' },
+    { type: 'bird',        w: 3, good: true,  icon: '🐦', name: 'Schubvogel',   desc: 'kreist am Himmel: treffen = Mega-Schub' },
   ];
   let eventCool = 0;
   function spawnEvent(force) {
@@ -182,6 +184,9 @@
       e.at = lim * (0.5 + 0.38 * Math.random()); e.h = lim * 0.07; e.r = lim * 0.035; e.snap = 0;
     } else if (ev.type === 'bonusAir') {
       e.x = lim * (0.3 + 0.6 * Math.random()); e.y = st.range * (0.06 + 0.22 * Math.random()); e.r = e.x * 0.035;
+    } else if (ev.type === 'bird') { // Vogel als seltenes Ereignis (Nico): kreist schon vor dem Schuss sichtbar an fester Stelle
+      e.cx = lim * (0.22 + 0.4 * Math.random()); e.cy = lim * (0.07 + 0.16 * Math.random()); e.rad = lim * 0.018;
+      e.fly = { x: e.cx, y: e.cy, vx: 1, type: s.age, ph: Math.random() * 6, hit: false, big: true, hover: true };
     }
     e.label = e.icon + ' ' + e.name;
     view.event = e; view.intro = { e, t: 0 };
@@ -235,13 +240,7 @@
       view.shake = Math.max(view.shake, qq.crit ? 0.25 : 0.12);
     }
     floatText(view.x0 + 10, view.groundY - 90, qq.grade, qq.crit ? '#ffd23f' : qq.q >= 1 ? '#5ee07a' : qq.q > 0.9 ? '#ffd23f' : '#ff8a7a', 18);
-    view.flyers = [];
-    if (!chal) { // Flieger passend zum Zeitalter: geben Schub
-      // Nur noch ein Vogel pro Schuss, der dafür kräftig anschiebt. Er fliegt in der Nähe der Flugbahn, man muss ihn aber treffen.
-      const span = shot.predD, x = span * (0.25 + 0.45 * Math.random());
-      const yT = x * Math.tan(a) - G * x * x / (2 * v0 * v0 * Math.cos(a) ** 2);
-      view.flyers.push({ x, y: Math.max(shot.predApex * 0.2, yT + (Math.random() - 0.5) * shot.predApex * 0.5), vx: (Math.random() < 0.5 ? -1 : 1) * span * 0.035, type: s.age, ph: Math.random() * 6, hit: false, big: true });
-    }
+    view.flyers = birdFlyers(); // Vogel nur noch als Ereignis „Schubvogel“
     phase = 'flight'; phaseT = 0; updateFire();
   }
 
@@ -260,7 +259,6 @@
   function pierce(key) { if (shot.ammo !== 'bohrer' || shot.pierced.length >= 3) return false; shot.pierced.push(key); return true; }
   // Die Kugel fliegt frei über Hindernisse – nur wer ein Teil trifft, macht Schaden
   function checkObstacles(b) {
-    if (shot.ammo === 'spreng') return; // Sprengkugel fliegt ohne Schaden durch Hindernisse
     const br = 5 / view.scale;
     for (const ob of view.obstacles) {
       const o = ob.o;
@@ -272,6 +270,7 @@
         const p = o.parts[i], q = J.partPos(o, i, view.time, ob.ys);
         if (b.x + br < q.x || b.x - br > q.x + p.w || b.y + br < q.y || b.y - br > q.y + p.h) continue;
         if (ob.state === 'locked') { block(b, q.x, '🔒 Erst ab ' + J.AGES[o.age].name); return; }
+        if (shot.ammo === 'spreng') { block(b, q.x, '💣 Abgeprallt, kein Schaden'); return; } // Sprengkugel prallt ab, macht aber keinen Schaden (Nico)
         const dmg = shotDmg();
         hp[i] = Math.max(0, hp[i] - dmg);
         ob.hit[i] = 1;
@@ -343,7 +342,7 @@
         if (f.hit || dist2px(f.x, f.y, b.x, b.y) > 32) return;
         // Kräftiger Schub: die Kugel wird nach vorn und oben geschleudert
         const bk = J.stats(s).bird;
-        f.hit = true; f.boost = 1; b.vx = Math.max(b.vx, 0) * (1 + 0.25 * bk) + shot.v0 * 0.08 * bk; b.vy = Math.max(0, b.vy) * 0.5 + shot.v0 * 0.42 * bk;
+        f.hit = true; f.boost = 1; if (view.event && view.event.fly === f) view.event.got = true; b.vx = Math.max(b.vx, 0) * (1 + 0.25 * bk) + shot.v0 * 0.08 * bk; b.vy = Math.max(0, b.vy) * 0.5 + shot.v0 * 0.42 * bk;
         const g = Math.max(1, Math.round(J.shotGold(s, Math.max(shot.predD, 0.05)) * 0.3));
         shot.birdGold += g; shot.birdHit = true; const [fx, fy] = toScreen(f.x, f.y); floatText(fx, fy - 20, 'MEGA-SCHUB! +' + J.fmtNum(g), '#7ff6ff', 19); burst(fx, fy, '#ffffff', 22); burst(fx, fy, '#7ff6ff', 16);
         view.rings = view.rings || []; view.rings.push({ x: fx, y: fy, t: 0, col: '127,246,255' }); view.shake = Math.max(view.shake, 0.3); sfx('boost'); setTimeout(() => sfx('perfect'), 90);
@@ -384,7 +383,7 @@
     }
     const lt = view.trail[view.trail.length - 1];
     if (Math.abs(b.x - lt[0]) * view.scale > 3 || Math.abs(b.y - lt[1]) * view.scale > 3) view.trail.push([b.x, b.y]);
-    view.flyers.forEach(f => { if (!f.hit) f.x += f.vx * dt; });
+    view.flyers.forEach(f => { if (!f.hit && !f.hover) f.x += f.vx * dt; });
     // Kamera folgt: zoomt heraus, falls die Kugel weiter fliegt als erwartet
     const xm = Math.max(shot.blocked || shot.predD, b.x * 1.1);
     targetScale = Math.min(autoScale() / Math.max(1, zoom), fitScale(xm * 1.05, Math.max(shot.predApex * 1.15, b.y * 1.15)));
@@ -430,6 +429,8 @@
     save(); renderAll();
   }
 
+  // Der Schubvogel des Ereignisses (falls aktiv und noch nicht getroffen)
+  function birdFlyers() { const e = view.event; return !chal && e && e.type === 'bird' && e.fly && !e.got ? [e.fly] : []; }
   function finishShot() {
     const wasChal = shot && shot.inChal;
     phase = 'idle'; view.ball = null; view.flyers = []; shot = null;
@@ -495,13 +496,13 @@
   }
   // Treffer an einem Challenge-Turm (wie bei Hindernissen: zerstörte Teile lassen die Kugel weiterfliegen)
   function checkChalTower(b) {
-    if (shot.ammo === 'spreng') return;
     const o = chal.tower, br = 5 / view.scale;
     if (b.x < o.at - o.u * 1.5 || b.x > o.end + o.u * 2) return;
     for (let i = 0; i < o.parts.length; i++) {
       if (chal.hp[i] <= 0 || shot.pierced.includes('c:' + i)) continue;
       const p = o.parts[i], q = J.partPos(o, i, view.time, chal.ys);
       if (b.x + br < q.x || b.x - br > q.x + p.w || b.y + br < q.y || b.y - br > q.y + p.h) continue;
+      if (shot.ammo === 'spreng') { block(b, q.x, '💣 Abgeprallt, kein Schaden'); return; }
       const dmg = shotDmg();
       chal.hp[i] = Math.max(0, chal.hp[i] - dmg); chal.hit[i] = 1;
       const [sx, sy] = toScreen(b.x, b.y); burst(sx, sy, '#ffb347', 12); sfx('hit');
@@ -572,6 +573,8 @@
     view.ghosts.forEach(g => { g.t += dt; }); view.ghosts = view.ghosts.filter(g => g.t < 0.6);
     if (view.rings) { view.rings.forEach(r => { r.t += dt; }); view.rings = view.rings.filter(r => r.t < 0.4); }
     view.shake = Math.max(0, view.shake - dt);
+    if (view.event && view.event.fly && !view.event.fly.hit) { const e = view.event, f = e.fly, w = view.time * 0.9 + f.ph; f.x = e.cx + Math.cos(w) * e.rad; f.y = e.cy + Math.sin(w) * e.rad * 0.6; f.vx = -Math.sin(w); }
+    if (phase !== 'flight' && phase !== 'land') view.flyers = birdFlyers();
     if (view.event) { const e = view.event; if (e.pop) e.pop = Math.max(0, e.pop - dt * 1.2); if (e.snap) e.snap = Math.max(0, e.snap - dt * 0.8); }
     if (view.goodFx) { view.goodFx.t += rdt; if (view.goodFx.t > 0.8) view.goodFx = null; }
     if (view.intro) { view.intro.t += dt; if (view.intro.t > 2.4) view.intro = null; }
@@ -1269,6 +1272,6 @@
   if (away && away.dt > 30) offlineToast(away);
   if (s.shots === 0) toast('Tippe <b>Laden</b>, dann im <b style="color:#5ee07a">grünen Bereich</b> auslösen. Triff jedes Teil der Hindernisse.');
   // Nur in der Entwickler-Version: Zugriff für automatische Tests in der Konsole
-  if (DEV) window.ES = { get s() { return s; }, view, J, startChallenge, setStageView, onFire, release, startRift, trainDone: () => trainDone(), setAngle, setPower, jumpToAge, doJump, renderAll, get phase() { return phase; } };
+  if (DEV) window.ES = { spawnEvent, get s() { return s; }, view, J, startChallenge, setStageView, onFire, release, startRift, trainDone: () => trainDone(), setAngle, setPower, jumpToAge, doJump, renderAll, get phase() { return phase; } };
   requestAnimationFrame(frame);
 })();

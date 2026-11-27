@@ -230,7 +230,7 @@
   const AMMO = [
     { id: 'kugel',  icon: '⚫', name: 'Kugel',        price: 0,   desc: 'Die normale Munition. Unbegrenzt.' },
     { id: 'pfeil',  icon: '🏹', name: 'Pfeil',        price: 1.2, desc: '×3 Schaden an Hindernissen, fliegt aber 15 % weniger weit.' },
-    { id: 'spreng', icon: '💣', name: 'Sprengkugel',  price: 1.0, desc: 'Explodiert am Boden und schleudert sich weit nach vorn. Fliegt ohne Schaden durch Hindernisse.' },
+    { id: 'spreng', icon: '💣', name: 'Sprengkugel',  price: 1.0, desc: 'Explodiert am Boden und schleudert sich weit nach vorn. Prallt an Hindernissen ab, ohne Schaden zu machen.' },
     { id: 'bohrer', icon: '🔩', name: 'Bohrkugel',    price: 1.6, desc: 'Durchbohrt bis zu 3 Teile und macht an jedem vollen Schaden.' },
     { id: 'huepf',  icon: '🏀', name: 'Hüpfkugel',    price: 0.6, desc: 'Springt nach der Landung noch 3-mal weiter.' },
     { id: 'gold',   icon: '💰', name: 'Goldkugel',    price: 1.3, desc: 'Dreifaches Gold für diesen Schuss.' },

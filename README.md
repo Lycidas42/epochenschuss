@@ -8,7 +8,7 @@ Mobile-first, läuft aber auch am Desktop (Touch, Maus und Tastatur). Statische 
 1. Der Schütze steht fest an der Kanone. **Laden** tippen startet die Timing-Leiste.
 2. Winkel (10–80°) und **Schussstärke** (20–100 %) einstellen: Regler, Ziehen im Spielfeld oder Pfeiltasten. Die Vorschau zeigt nur das Anfangsstück der Bahn (ca. 35 %, mit Zielhilfe bis 65 %). Die Spur des letzten Schusses blendet nach der Landung aus.
 3. Die Timing-Leiste läuft hin und her. Grün = volle Kraft, helle Mitte = „Perfekt! Kritisch“ (+50 % Schaden). Gelb/Rot = schwächerer Schuss.
-4. Unterwegs: **Sterne** (Gold), **ein großer Vogel** passend zum Zeitalter (leuchtet, gibt beim Treffen kräftigen „MEGA-SCHUB!“) und manchmal ein **Ereignis**.
+4. Unterwegs: **Sterne** (Gold), manchmal ein **Ereignis**. Der Vogel kommt nur noch als seltenes Ereignis 🐦 **Schubvogel**: Er kreist schon vor dem Schuss sichtbar an fester Stelle, treffen gibt „MEGA-SCHUB!“.
 5. Auslösen im grünen Bereich: kurzer Effekt (Ringe, Strahlen, „IM GRÜNEN!“ bzw. „★ PERFEKT! ★“). Der Schütze zieht je nach Zeitalter an Schleuder/Zugleine, drückt die Lunte oder den Hebel bzw. den Knopf am Pult.
 6. Das Geschoss ändert sich je Zeitalter: Stein, Bronzekugel, Eisenbolzen, Granitbrocken, brennender Fels, Kanonenkugel, Stahlgranate, Rakete, Plasma-Rakete (mit Rauch/Feuer/Plasma-Spur).
 7. **Munition** wählt man in der Leiste über dem Laden-Knopf (Kauf im Shop, siehe unten).
@@ -42,7 +42,7 @@ Eigene Ansicht im Spielfenster (Umschalter **🎯 Kanone / ⛏️ Rohstoffe / �
 Start mit großem Hinweis in der Mitte, danach oben links eine Karte mit Symbol, Wirkung und verbleibenden Schüssen (grün = gut, rot = schlecht). Regen, Nebel und Fallwind sind auch im Bild zu sehen. Boni enden, sobald man sie eingesammelt hat.
 
 
-Rückenwind/Gegenwind, 🐾 Maulwurf (stößt Kugeln, die auf seinem Hügel landen, wieder hoch), 🌿 Schnapppflanze (fängt tief fliegende Kugeln), ⛈️ Gewitterwolken (bremsen), 🌧️ Regen (Luftwiderstand), ⬇️ Fallwind (mehr Schwerkraft), 🌫️ Nebel (keine Vorschau), 💰 Schatzkiste am Boden, 🎈 Goldballon, ✨ Sternenregen.
+Rückenwind/Gegenwind, 🐾 Maulwurf (stößt Kugeln, die auf seinem Hügel landen, wieder hoch), 🌿 Schnapppflanze (fängt tief fliegende Kugeln), ⛈️ Gewitterwolken (bremsen), 🌧️ Regen (Luftwiderstand), ⬇️ Fallwind (mehr Schwerkraft), 🌫️ Nebel (keine Vorschau), 💰 Schatzkiste am Boden, 🎈 Goldballon, ✨ Sternenregen, 🐦 Schubvogel (kreist sichtbar, treffen = Mega-Schub, endet nach dem Treffer).
 
 ## Challenges
 
@@ -71,7 +71,7 @@ Höhen-Challenges (Ziele am Boden, auf Podesten und auf Aufzügen, die hoch und 
 
 Tab **Shop** im Werkbank-Panel. Preise wachsen mit dem Zeitalter (Basis = Gold eines vollen Schusses).
 
-- **Munition** in 5er-Packs, Auswahl in der Leiste über dem Laden-Knopf (normale Kugel unbegrenzt): 🏹 Pfeil (×3 Schaden an Hindernissen, 15 % weniger weit), 💣 Sprengkugel (fliegt ohne Schaden durch Hindernisse, explodiert am Boden und schleudert weit nach vorn), 🔩 Bohrkugel (durchbohrt bis zu 3 Teile), 🏀 Hüpfkugel (springt 3-mal weiter), 💰 Goldkugel (dreifaches Gold).
+- **Munition** in 5er-Packs, Auswahl in der Leiste über dem Laden-Knopf (normale Kugel unbegrenzt): 🏹 Pfeil (×3 Schaden an Hindernissen, 15 % weniger weit), 💣 Sprengkugel (prallt ohne Schaden an Hindernissen ab, explodiert am Boden und schleudert weit nach vorn), 🔩 Bohrkugel (durchbohrt bis zu 3 Teile), 🏀 Hüpfkugel (springt 3-mal weiter), 💰 Goldkugel (dreifaches Gold).
 - **Schreine:** 3 zufällige Angebote (Schaden, Reichweite, Gold, Arbeitstempo, kritischer Schaden; je nach Stärke teurer), neu würfeln kostet Gold. Jeder Schrein macht den nächsten teurer.
 - Munition und Schreine gehen beim Zeitsprung verloren.
 
