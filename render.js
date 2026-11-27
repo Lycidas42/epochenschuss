@@ -745,7 +745,13 @@
     function drawFlyer(v, f) {
       const x = v.x0 + f.x * v.scale, y = v.groundY - f.y * v.scale;
       if (x < -40 || x > W + 40 || y < -40) return;
-      c.save(); c.translate(x, y); if (f.vx < 0) c.scale(-1, 1);
+      c.save(); c.translate(x, y);
+      if (f.big) { // der eine, starke Vogel: leuchtender Schein, damit man ihn gut sieht
+        if (!f.hit) { const pr = 0.75 + 0.25 * Math.sin(v.time * 5 + f.ph), g = c.createRadialGradient(0, 0, 4, 0, 0, 34); g.addColorStop(0, `rgba(127,246,255,${0.45 * pr})`); g.addColorStop(1, 'rgba(127,246,255,0)'); c.fillStyle = g; c.beginPath(); c.arc(0, 0, 34, 0, TAU); c.fill();
+          c.strokeStyle = `rgba(255,255,255,${0.5 * pr})`; c.lineWidth = 1.5; c.setLineDash([3, 4]); c.beginPath(); c.arc(0, 0, 24 + 3 * pr, 0, TAU); c.stroke(); c.setLineDash([]); }
+        c.scale(1.7, 1.7);
+      }
+      if (f.vx < 0) c.scale(-1, 1);
       if (f.hit) c.globalAlpha = 0.4;
       const flap = Math.sin(v.time * 10 + f.ph) * 6;
       const type = f.type;
@@ -1023,6 +1029,32 @@
       if (t > 2.5 && t < 9.8) { c.font = '600 12px Fredoka, system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'bottom'; c.fillStyle = 'rgba(255,255,255,0.7)'; c.fillText('Tippen zum Überspringen', W / 2, H - 8); }
     }
 
+    // Untergrund der Höhen-Ziele: Pfosten am Boden, Podest auf Stützen, Aufzug mit Schiene und Seil
+    function drawTargetStand(v, t, x, y, r, gy) {
+      const wood = '#7a5230', dark = '#4a2e14', metal = v.age >= 6, Y = yy => v.groundY - yy * v.scale;
+      if (t.kind === 'ground') {
+        c.fillStyle = dark; c.fillRect(x - 2, y + r * 0.8, 4, gy - y - r * 0.8);
+        c.fillStyle = wood; c.beginPath(); c.moveTo(x - r * 0.9, gy); c.lineTo(x, y + r * 0.6); c.lineTo(x + r * 0.9, gy); c.lineWidth = 3; c.strokeStyle = wood; c.stroke();
+      } else if (t.kind === 'post') {
+        const pw = Math.max(10, r * 2.4), top = y + r + 2;
+        c.fillStyle = metal ? '#6a6e75' : '#8a6a44'; c.fillRect(x - pw * 0.18, top, pw * 0.36, gy - top);
+        c.strokeStyle = metal ? '#4a4e55' : '#5a3d22'; c.lineWidth = 2; c.beginPath();
+        for (let yy = top + 6; yy < gy - 4; yy += 10) { c.moveTo(x - pw * 0.18, yy); c.lineTo(x + pw * 0.18, yy + 8); c.moveTo(x + pw * 0.18, yy); c.lineTo(x - pw * 0.18, yy + 8); }
+        c.stroke();
+        c.fillStyle = metal ? '#8d939b' : '#a0703c'; rr(c, x - pw / 2, top - 2, pw, 6, 2); c.fill();
+        c.fillStyle = 'rgba(255,255,255,0.25)'; c.fillRect(x - pw / 2 + 2, top - 1, pw - 4, 1.5);
+        c.fillStyle = 'rgba(0,0,0,0.25)'; c.beginPath(); c.ellipse(x, gy, pw * 0.5, 3, 0, 0, TAU); c.fill();
+      } else if (t.kind === 'lift') {
+        const yTop = Y(t.hi) - r - 8, pw = Math.max(10, r * 2.4);
+        c.fillStyle = metal ? '#4a4e55' : '#5a3d22'; c.fillRect(x - pw / 2 - 3, yTop, 3, gy - yTop); c.fillRect(x + pw / 2, yTop, 3, gy - yTop);
+        c.fillStyle = metal ? '#6a6e75' : '#7a5230'; c.fillRect(x - pw / 2 - 5, yTop - 4, pw + 10, 5);
+        c.strokeStyle = 'rgba(30,20,10,0.8)'; c.lineWidth = 1; c.beginPath(); c.moveTo(x, yTop); c.lineTo(x, y - r); c.stroke();
+        c.fillStyle = '#3b2b1a'; c.beginPath(); c.arc(x, yTop - 1, 3, 0, TAU); c.fill();
+        const top = y + r + 2; c.fillStyle = metal ? '#8d939b' : '#a0703c'; rr(c, x - pw / 2, top - 2, pw, 5, 2); c.fill();
+        // Pfeile zeigen die Fahrtrichtung
+        c.fillStyle = 'rgba(255,255,255,0.7)'; const ay = (yTop + gy) / 2; [-1, 1].forEach(d => { c.beginPath(); c.moveTo(x + pw / 2 + 9, ay + d * 10); c.lineTo(x + pw / 2 + 5, ay + d * 4); c.lineTo(x + pw / 2 + 13, ay + d * 4); c.fill(); });
+      }
+    }
     // ---------- Challenge-Ziele ----------
     function drawChallenge(v) {
       const ch = v.chal; if (!ch) return;
@@ -1045,6 +1077,7 @@
       }
       (ch.targets || []).forEach(t => {
         const x = X(t.x), y = Y(t.y), r = Math.max(8, t.r * v.scale);
+        if (t.kind) drawTargetStand(v, t, x, y, r, gy);
         if (ch.c.id === 'turm') { c.fillStyle = '#7b7d84'; c.fillRect(x - 6, y + r, 12, gy - y - r); }
         if (ch.c.look === 'kite') { // Drachen mit Schnur und Schwanz
           c.globalAlpha = t.hit ? 0.35 : 1;

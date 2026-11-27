@@ -87,7 +87,7 @@
       const c = chal.c; let xm = 0, ym = 0;
       if (c.type === 'ground') { xm = c.at * (1 + (c.move || 0)) * 1.2; ym = c.at * 0.3; }
       else if (c.type === 'tower') { xm = chal.tower.end * 1.25; ym = Math.max(chal.tower.top * 1.5, xm * 0.25); }
-      else c.targets.forEach(t => { xm = Math.max(xm, t[0] * (1 + (c.move || 0)) * 1.15); ym = Math.max(ym, t[1] * 1.35); });
+      else c.targets.forEach(t => { xm = Math.max(xm, t[0] * (1 + (c.move || 0)) * 1.15); ym = Math.max(ym, Math.max(t[1], t[3] || 0) * 1.35); });
       return fitScale(xm, ym);
     }
     const st = J.stats(s), v = vel(s.power), a = rad(s.angle);
@@ -223,12 +223,10 @@
     floatText(view.x0 + 10, view.groundY - 90, qq.grade, qq.crit ? '#ffd23f' : qq.q >= 1 ? '#5ee07a' : qq.q > 0.9 ? '#ffd23f' : '#ff8a7a', 18);
     view.flyers = [];
     if (!chal) { // Flieger passend zum Zeitalter: geben Schub
-      const n = 2 + Math.floor(s.age / 2) + (Math.random() < 0.5 ? 1 : 0), span = shot.predD;
-      for (let i = 0; i < n; i++) {
-        const x = span * (0.2 + 0.7 * Math.random());
-        const yT = x * Math.tan(a) - G * x * x / (2 * v0 * v0 * Math.cos(a) ** 2);
-        view.flyers.push({ x, y: Math.max(shot.predApex * 0.15, yT + (Math.random() - 0.5) * shot.predApex * 0.6), vx: (Math.random() < 0.5 ? -1 : 1) * span * 0.04, type: s.age, ph: Math.random() * 6, hit: false });
-      }
+      // Nur noch ein Vogel pro Schuss, der dafür kräftig anschiebt. Er fliegt in der Nähe der Flugbahn, man muss ihn aber treffen.
+      const span = shot.predD, x = span * (0.25 + 0.45 * Math.random());
+      const yT = x * Math.tan(a) - G * x * x / (2 * v0 * v0 * Math.cos(a) ** 2);
+      view.flyers.push({ x, y: Math.max(shot.predApex * 0.2, yT + (Math.random() - 0.5) * shot.predApex * 0.5), vx: (Math.random() < 0.5 ? -1 : 1) * span * 0.035, type: s.age, ph: Math.random() * 6, hit: false, big: true });
     }
     phase = 'flight'; phaseT = 0; updateFire();
   }
@@ -322,10 +320,13 @@
       });
       // Flieger: Schub + etwas Gold
       view.flyers.forEach(f => {
-        if (f.hit || dist2px(f.x, f.y, b.x, b.y) > 22) return;
-        f.hit = true; b.vx *= 1.015; b.vy = b.vy < 0 ? b.vy * 0.4 + shot.v0 * 0.03 : b.vy + shot.v0 * 0.025; // nur ein kleiner Stups
-        const g = Math.max(1, Math.round(J.shotGold(s, Math.max(shot.predD, 0.05)) * 0.1));
-        shot.birdGold += g; const [fx, fy] = toScreen(f.x, f.y); floatText(fx, fy - 16, 'Stups! +' + J.fmtNum(g), '#7ff6ff'); burst(fx, fy, '#ffffff', 8); sfx('boost');
+        if (f.hit || dist2px(f.x, f.y, b.x, b.y) > 32) return;
+        // Kräftiger Schub: die Kugel wird nach vorn und oben geschleudert
+        const bk = J.stats(s).bird;
+        f.hit = true; f.boost = 1; b.vx = Math.max(b.vx, 0) * (1 + 0.25 * bk) + shot.v0 * 0.08 * bk; b.vy = Math.max(0, b.vy) * 0.5 + shot.v0 * 0.42 * bk;
+        const g = Math.max(1, Math.round(J.shotGold(s, Math.max(shot.predD, 0.05)) * 0.3));
+        shot.birdGold += g; shot.birdHit = true; const [fx, fy] = toScreen(f.x, f.y); floatText(fx, fy - 20, 'MEGA-SCHUB! +' + J.fmtNum(g), '#7ff6ff', 19); burst(fx, fy, '#ffffff', 22); burst(fx, fy, '#7ff6ff', 16);
+        view.rings = view.rings || []; view.rings.push({ x: fx, y: fy, t: 0, col: '127,246,255' }); view.shake = Math.max(view.shake, 0.3); sfx('boost'); setTimeout(() => sfx('perfect'), 90);
       });
       // Ereignisse
       const e = view.event;
@@ -406,7 +407,7 @@
     const c0 = J.CHALLENGES.find(x => x.id === id);
     if (!c0 || phase !== 'idle' || s.age < c0.minAge || s.ch[c0.id]) return;
     const c = J.chalFor(s, c0);
-    chal = { c, used: 0, targets: c.type === 'fly' ? c.targets.map(t => ({ x: t[0], y: t[1], bx: t[0], by: t[1], r: c.r, hit: false, ph: Math.random() * 6 })) : null,
+    chal = { c, used: 0, targets: c.type === 'fly' ? c.targets.map(t => ({ x: t[0], y: t[1], bx: t[0], by: t[1], kind: t[2] || null, hi: t[3], r: c.r, hit: false, ph: Math.random() * 6 })) : null,
       ground: c.type === 'ground' ? { at: c.at, w: c.w, x: c.at, move: c.move || 0, sp: c.sp || 1, ph: Math.random() * 6 } : null };
     if (c.type === 'tower') { // Turm aus Teilen: jedes Teil hält etwas mehr aus als ein normaler Treffer
       const u = c.u, hp = c.hpF * J.stats(s).dmg;
@@ -470,7 +471,7 @@
     if (stageView === 'res') for (const id in got) { const i = J.MATS.findIndex(m => m.id === id); if (tiles[i]) tiles[i].pop(i, got[id], true); }
     view.playerX = shootX(); view.act = Math.max(0, (view.act || 0) - dt * 2.2); if (view.pose === 'fire' && view.act <= 0) view.pose = 'idle';
     if (phase === 'aim' && view.bar) { view.bar.t += dt * J.stats(s).barSpeed; const f = view.bar.t % 2; view.bar.pos = f < 1 ? f : 2 - f; }
-    if (chal && chal.targets) chal.targets.forEach(t => { if (!t.hit) { t.x = t.bx * (1 + (chal.c.move || 0) * Math.sin(view.time * 0.9 + t.ph)); if (chal.c.moveY) t.y = t.by * (1 + chal.c.moveY * Math.sin(view.time * 1.6 + t.ph * 2)); } });
+    if (chal && chal.targets) chal.targets.forEach(t => { if (t.kind === 'lift') { t.y = t.by + (t.hi - t.by) * (0.5 + 0.5 * Math.sin(view.time * 1.25 + t.ph)); return; } if (t.kind) return; if (!t.hit) { t.x = t.bx * (1 + (chal.c.move || 0) * Math.sin(view.time * 0.9 + t.ph)); if (chal.c.moveY) t.y = t.by * (1 + chal.c.moveY * Math.sin(view.time * 1.6 + t.ph * 2)); } });
     if (chal && chal.ground && chal.ground.move && !(phase === 'land' && shot && shot.inChal)) { const g = chal.ground; g.x = g.at * (1 + g.move * Math.sin(view.time * g.sp + g.ph)); }
     if (chal && chal.tower) { const o = chal.tower; o.parts.forEach((p, i) => { const tg = J.partLevel(o, chal.hp, i); chal.ys[i] = chal.ys[i] < tg ? tg : Math.max(tg, chal.ys[i] - o.u * 14 * dt); }); chal.hit.forEach((v, i, a) => { a[i] = Math.max(0, (v || 0) - dt * 2); }); }
     if (phase === 'flight') flightStep(dt);
@@ -1049,5 +1050,7 @@
   view.scale = autoScale(); computePreview(); updateFire(); renderAll();
   if (away && away.dt > 30) offlineToast(away);
   if (s.shots === 0) toast('Tippe <b>Laden</b>, dann im <b style="color:#5ee07a">grünen Bereich</b> auslösen. Triff jedes Teil der Hindernisse.');
+  // Nur in der Entwickler-Version: Zugriff für automatische Tests in der Konsole
+  if (DEV) window.ES = { get s() { return s; }, view, J, startChallenge, setStageView, onFire, release, setAngle, setPower, jumpToAge, doJump, renderAll, get phase() { return phase; } };
   requestAnimationFrame(frame);
 })();

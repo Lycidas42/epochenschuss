@@ -18,7 +18,7 @@
     steps: 3,                                     // Stufen je Upgrade-Linie und Zeitalter
     goal: 1000, offlineCap: 8 * 3600,
     spK: 10, spExp: 0.4, spMin: 1, spWin: 25, wsG: 1.5,
-    wsAder: 0.4, wsHaende: 0.4, wsSchlag: 0.25, wsLauf: 0.12, wsKugel: 0.25, wsPlaene: 0.07, wsLinse: 0.1, // Zeitwerkstatt je Stufe // Zeitsprung: Splitter = spK × Rekord_km^spExp, ab spMin km; Kosten-Wachstum Zeitwerkstatt
+    wsAder: 0.4, wsHaende: 0.4, wsSchlag: 0.25, wsLauf: 0.12, wsKugel: 0.25, wsPlaene: 0.07, wsLinse: 0.1, wsVogel: 0.15, // Zeitwerkstatt je Stufe // Zeitsprung: Splitter = spK × Rekord_km^spExp, ab spMin km; Kosten-Wachstum Zeitwerkstatt
   }, root.JS_P || {});
 
   const LINES = [
@@ -122,6 +122,11 @@
   // type 'ground': Landung im Zielbereich [at-w, at+w]. type 'fly': alle Ziele treffen (Radius r).
   // type 'tower': alle Teile eines Turms zerstören (Teile [dx, y, w, h, auf Teil, Art, Bewegung] in Einheiten u). move: Ziel fährt hin und her (Anteil), moveY: Ziel schwebt auf und ab.
   // Positionen gelten für das Zeitalter minAge; in späteren Zeitaltern wird alles mitskaliert (chalFor).
+  // Höhen-Challenge: Positionen relativ zur Start-Reichweite des Zeitalters (x, Höhe, Art, obere Höhe beim Aufzug)
+  function hz(id, minAge, name, tg, r, tries, bonus, desc) {
+    const R = ageRange(minAge);
+    return { id, minAge, name, type: 'fly', heights: true, targets: tg.map(t => [t[0] * R, Math.max(t[1] * R, r * R * 1.05), t[2], t[3] != null ? t[3] * R : null]), r: r * R, move: 0, tries, bonus, desc };
+  }
   const CHALLENGES = [
     { id: 'scheibe', minAge: 0,  name: 'Zielscheibe',      type: 'ground', at: 0.035, w: 0.0018, tries: 3, bonus: { dmg: 0.10 }, desc: 'Lande auf der Zielscheibe – 3 Versuche.' },
     { id: 'voegel', minAge: 0,   name: 'Vogelschwarm',     type: 'fly', targets: [[0.02, 0.009], [0.03, 0.016], [0.042, 0.007]], r: 0.0017, move: 0.18, tries: 5, bonus: { gold: 0.10 }, desc: 'Triff 3 fliegende Vögel mit 5 Schüssen.' },
@@ -138,12 +143,17 @@
     { id: 'zeppelin', minAge: 6, name: 'Zeppelin-Staffel', type: 'fly', targets: [[30, 7], [38, 11], [45, 5], [52, 9], [60, 4]], r: 1.3, move: 0.08, tries: 8, bonus: { gold: 0.20 }, desc: 'Triff 5 Zeppeline mit 8 Schüssen.' },
     { id: 'panzerzug', minAge: 6, name: 'Panzerzug',       type: 'ground', at: 70, w: 1.6, move: 0.25, sp: 1.4, look: 'train', tries: 4, bonus: { gold: 0.15 }, desc: 'Ein Panzerzug rast hin und her – lande genau darauf. 4 Versuche.' },
     { id: 'bunker', minAge: 7,   name: 'Bunkerknacker',    type: 'ground', at: 200, w: 4.5, tries: 3, bonus: { gold: 0.20 }, desc: 'Lande genau auf dem Bunker – 3 Versuche.' },
+    // Höhen-Challenges: Ziele auf dem Boden ('ground'), auf Podesten ('post') und auf Aufzügen ('lift', fährt von unten nach oben)
+    hz('hoehen', 0, 'Höhenparcours', [[0.4, 0, 'ground'], [0.58, 0.2, 'post'], [0.72, 0.03, 'lift', 0.17]], 0.03, 6, { gold: 0.10 }, 'Drei Ziele: eins am Boden, eins auf einem Podest, eins fährt auf und ab. 6 Schüsse.'),
+    hz('stufen', 2, 'Stufenziele', [[0.35, 0, 'ground'], [0.5, 0.15, 'post'], [0.65, 0.25, 'post'], [0.8, 0.02, 'lift', 0.12]], 0.028, 7, { dmg: 0.10 }, 'Vier Ziele auf verschiedenen Höhen, das letzte auf einem Aufzug. 7 Schüsse.'),
+    hz('aufzug', 4, 'Aufzugturm', [[0.45, 0.05, 'lift', 0.35], [0.62, 0.3, 'post'], [0.78, 0.02, 'lift', 0.18], [0.9, 0, 'ground']], 0.025, 7, { dmg: 0.15 }, 'Zwei Aufzüge, ein hohes Podest und ein Bodenziel. 7 Schüsse.'),
+    hz('daecher', 7, 'Dächerjagd', [[0.4, 0.1, 'post'], [0.55, 0.28, 'post'], [0.7, 0.2, 'post'], [0.85, 0.02, 'lift', 0.1]], 0.022, 7, { gold: 0.20 }, 'Ziele auf Dächern verschiedener Höhe, eins auf einem Lastenaufzug. 7 Schüsse.'),
     { id: 'satellit', minAge: 8, name: 'Satellitenjagd',   type: 'fly', targets: [[500, 160], [620, 110], [700, 190], [780, 80]], r: 14, move: 0.06, tries: 6, bonus: { dmg: 0.25 }, desc: 'Triff 4 Satelliten mit 6 Schüssen.' },
   ];
   // Challenge passend zum aktuellen Zeitalter: in späteren Zeitaltern wird alles mitskaliert, damit sie spielbar bleibt
   function chalFor(s, c) {
     const k = s.age > c.minAge ? ageRange(s.age) / ageRange(c.minAge) : 1, m = x => x == null ? x : x * k;
-    return Object.assign({}, c, { k, at: m(c.at), w: m(c.w), r: m(c.r), u: m(c.u), targets: c.targets && c.targets.map(t => [t[0] * k, t[1] * k]) });
+    return Object.assign({}, c, { k, at: m(c.at), w: m(c.w), r: m(c.r), u: m(c.u), targets: c.targets && c.targets.map(t => [t[0] * k, t[1] * k, t[2], t[3] != null ? t[3] * k : null]) });
   }
   const BONUS_NAME = { dmg: 'Schaden', range: 'Reichweite', gold: 'Gold' };
   function bonusText(b) { return Object.keys(b).map(k => '+' + Math.round(b[k] * 100) + ' % ' + BONUS_NAME[k]).join(', '); }
@@ -239,6 +249,7 @@
       barSpeed: 0.9,
       goldMult: Math.pow(P.gluckF, lv.gluck) * (1 + chBonus(s, 'gold')) * (1 + P.wsAder * W(s, 'ader')),
       stars: 3 + Math.floor(lv.gluck / 4) + W(s, 'stern'),
+      bird: 1 + P.wsVogel * W(s, 'vogel'),             // Stärke des Vogel-Schubs
       // getrennt ausgewiesen: Challenge-Boni und Zeitwerkstatt
       chRange: 1 + chBonus(s, 'range'), chDmg: 1 + chBonus(s, 'dmg'), chGold: 1 + chBonus(s, 'gold'),
       wsRange: 1 + P.wsLauf * W(s, 'lauf'), wsDmg: 1 + P.wsKugel * W(s, 'kugel'), wsGold: 1 + P.wsAder * W(s, 'ader'),
