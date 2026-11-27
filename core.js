@@ -461,8 +461,12 @@
 
   function ageUp(s) {
     if (!canAgeUp(s)) return false;
+    // Offene Upgrades des alten Zeitalters gelten beim Aufstieg als erworben (Nico, 2026-11-27)
+    let free = 0;
+    LINES.forEach(L => { const miss = Math.max(0, P.steps - s.cur[L.id]); s.lv[L.id] += miss; free += miss; });
     s.age++;
     LINES.forEach(L => { s.cur[L.id] = 0; });
+    s.freeUpg = free;
     return true;
   }
 

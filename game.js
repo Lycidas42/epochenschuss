@@ -4,7 +4,7 @@
   const J = window.JS;
   const $ = q => document.querySelector(q);
   const SAVE = 'jushoot-v2', SCORES = 'jushoot-scores';
-  const VERSION = '0.7.1'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
+  const VERSION = '0.7.2'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
   const G = 9.81e-3; // km/s²
 
   // ---------- Speichern ----------
@@ -372,7 +372,7 @@
         t.hit = true; const [sx, sy] = toScreen(t.x, t.y); burst(sx, sy, '#ffffff', 14); floatText(sx, sy - 18, 'Treffer!', '#5ee07a', 16); sfx('star');
       });
       if (!s.won && b.x >= J.P.goal) shot.reachedGoal = true;
-      if (b.y <= 0 && b.vy < 0 && shot.blocked == null && !shot.caught) groundAmmo(b);
+      if (b.y <= 0 && b.vy < 0 && !shot.caught) groundAmmo(b);
       if (b.y <= 0 && b.vy < 0) { b.y = 0; land(); }
     }
     // Abgas/Rauch/Funken je Zeitalter
@@ -393,12 +393,14 @@
   function groundAmmo(b) {
     const [sx] = toScreen(b.x, 0), sy = view.groundY - 4;
     if (shot.ammo === 'spreng' && !shot.boomed) {
-      shot.boomed = true; b.y = 1e-6; b.vy = shot.v0 * 0.55; b.vx = Math.max(Math.abs(b.vx), shot.v0 * 0.55);
+      // Explodiert immer am Boden; nur ohne Abpraller am Hindernis schleudert sie sich weiter nach vorn
+      shot.boomed = true; const fly = shot.blocked == null;
+      if (fly) { b.y = 1e-6; b.vy = shot.v0 * 0.55; b.vx = Math.max(Math.abs(b.vx), shot.v0 * 0.55); }
       for (let k = 0; k < 36; k++) { const an = Math.random() * Math.PI, sp = 120 + Math.random() * 260; view.parts.push({ x: sx, y: sy, vx: Math.cos(an) * sp, vy: -Math.sin(an) * sp, r: 2 + Math.random() * 3, life: 0.6 + Math.random() * 0.5, col: k % 3 ? '#ffb347' : '#fff3b0', spark: true }); }
       for (let k = 0; k < 10; k++) view.parts.push({ x: sx + (Math.random() - 0.5) * 30, y: sy - Math.random() * 20, vx: (Math.random() - 0.5) * 60, vy: -30 - Math.random() * 50, r: 8 + Math.random() * 10, life: 1.3, col: 'rgba(70,60,55,0.55)', dust: true });
       view.rings = view.rings || []; view.rings.push({ x: sx, y: sy, t: 0, col: '255,180,80' });
-      floatText(sx, sy - 60, 'BUMM! Weiter geht’s!', '#ffb347', 19); view.shake = Math.max(view.shake, 0.55); sfx('hit'); setTimeout(() => sfx('boost'), 80);
-    } else if (shot.ammo === 'huepf' && shot.bounces < 3) {
+      floatText(sx, sy - 60, fly ? 'BUMM! Weiter geht’s!' : 'BUMM!', '#ffb347', 19); view.shake = Math.max(view.shake, 0.55); sfx('hit'); setTimeout(() => sfx('boost'), 80);
+    } else if (shot.ammo === 'huepf' && shot.bounces < 3 && shot.blocked == null) {
       shot.bounces++; b.y = 1e-6; b.vy = Math.abs(b.vy) * 0.62; b.vx *= 0.88;
       burst(sx, sy, '#ff8a5a', 8); floatText(sx, sy - 40, 'Hüpf ' + shot.bounces + '/3', '#ffb3aa', 14); sfx('tap');
     }
@@ -663,7 +665,7 @@
       <div class="card"><b>Dein Schütze</b> <span class="muted">· ${esc(A.name)}</span>${skinPicker()}</div>`;
     if (!last) {
       h += `<div class="card ${J.canAgeUp(s) ? 'ready-card' : ''}"><b>Aufstieg zur ${esc(J.AGES[s.age + 1].name)}</b>
-        <div class="muted">${J.canAgeUp(s) ? (J.upgradesDone(s) ? 'Alles erledigt!' : 'Alle Hindernisse sind zerstört. Du kannst aufsteigen, offene Upgrades dieses Zeitalters verfallen dann.') : 'Zerstöre alle Hindernisse dieses Zeitalters. Upgrades helfen dabei, sind aber freiwillig.'}</div>
+        <div class="muted">${J.canAgeUp(s) ? (J.upgradesDone(s) ? 'Alles erledigt!' : 'Alle Hindernisse sind zerstört. Du kannst aufsteigen, offene Upgrades dieses Zeitalters bekommst du dabei geschenkt.') : 'Zerstöre alle Hindernisse dieses Zeitalters. Upgrades helfen dabei, sind aber freiwillig.'}</div>
         <div class="req"><span>Upgrades ${done}/${list.length} (freiwillig)</span><div class="prog"><i style="width:${done / list.length * 100}%"></i></div></div>
         <div class="req"><span>Hindernisse ${obsDone}/${obs.length}</span><div class="prog"><i style="width:${obsDone / obs.length * 100}%"></i></div></div>
         ${J.canAgeUp(s) ? `<button class="btn ready" data-ageup style="width:100%;margin-top:8px">Aufsteigen: ${esc(J.AGES[s.age + 1].cannon)}</button>` : ''}</div>`;
@@ -1020,6 +1022,7 @@
   function doAgeUp() {
     if (phase !== 'idle' || !J.ageUp(s)) return;
     const a = J.AGES[s.age];
+    if (s.freeUpg) { const n = s.freeUpg; setTimeout(() => toast('🎁 ' + n + ' offene Upgrades geschenkt'), 2600); } s.freeUpg = 0;
     if (chal) endChallenge();
     if (stageView !== 'cannon') setStageView('cannon');
     phase = 'ageup'; phaseT = 0; updateFire(); zoom = 1;

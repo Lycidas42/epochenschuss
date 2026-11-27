@@ -24,7 +24,7 @@ Mobile-first, läuft aber auch am Desktop (Touch, Maus und Tastatur). Statische 
 
 ## Fortschritt
 
-- **Kanone = Zeitalter.** Pro Zeitalter 12 Upgrades (4 Linien × 3 Stufen). Aufsteigen geht, sobald **alle Hindernisse des Zeitalters zerstört** sind. Upgrades helfen dabei, sind aber freiwillig (Nico, 2026-11-27).
+- **Kanone = Zeitalter.** Pro Zeitalter 12 Upgrades (4 Linien × 3 Stufen). Aufsteigen geht, sobald **alle Hindernisse des Zeitalters zerstört** sind. Upgrades helfen dabei, sind aber freiwillig (Nico, 2026-11-27). Offene Upgrades des Zeitalters gibt es beim Aufstieg geschenkt, sie zählen also als Basis fürs nächste Zeitalter.
 - Jedes Upgrade ändert die Kanone sichtbar: **Schusskraft** = längeres, dickeres Rohr aus edlerem Material (Stufe 3 golden), **Wucht** = andere Munition (Stapel neben der Kanone, Geschoss wird größer), Kimme/Zielfernrohr/Laser (Zielhilfe), Wimpel/Stern/Kleeblatt (Glück). Alle 4 Upgrades gibt es ein **neues Gestell** (Podest, Dreibein, goldene Drehscheibe).
 - **Schütze:** je Zeitalter 3 Skins (Mann, Frau, Kind) mit eigener Kleidung. Auswahl im Aufstiegs-Fenster und jederzeit im Kanonen-Tab; bleibt über Zeitsprünge erhalten.
 - **Hintergrund und Bahn je Zeitalter:** Vulkan/Steinplatten, Berge/Lehm, Tannen/Bohlenweg, Tempel/Marmor, Burg/Pflaster, Kuppelstadt/Ziegel, Fabriken/Eisenplatten mit Schienen, Hochhäuser/Asphalt, Weltraum-Neonstadt/leuchtendes Plasma-Metall.
@@ -71,7 +71,7 @@ Höhen-Challenges (Ziele am Boden, auf Podesten und auf Aufzügen, die hoch und 
 
 Tab **Shop** im Werkbank-Panel. Preise wachsen mit dem Zeitalter (Basis = Gold eines vollen Schusses).
 
-- **Munition** in 5er-Packs, Auswahl in der Leiste über dem Laden-Knopf (normale Kugel unbegrenzt): 🏹 Pfeil (×3 Schaden an Hindernissen, 15 % weniger weit), 💣 Sprengkugel (prallt ohne Schaden an Hindernissen ab, explodiert am Boden und schleudert weit nach vorn), 🔩 Bohrkugel (durchbohrt bis zu 3 Teile), 🏀 Hüpfkugel (springt 3-mal weiter), 💰 Goldkugel (dreifaches Gold).
+- **Munition** in 5er-Packs, Auswahl in der Leiste über dem Laden-Knopf (normale Kugel unbegrenzt): 🏹 Pfeil (×3 Schaden an Hindernissen, 15 % weniger weit), 💣 Sprengkugel (prallt ohne Schaden an Hindernissen ab, explodiert am Boden und schleudert weit nach vorn; nach einem Abpraller explodiert sie nur noch), 🔩 Bohrkugel (durchbohrt bis zu 3 Teile), 🏀 Hüpfkugel (springt 3-mal weiter), 💰 Goldkugel (dreifaches Gold).
 - **Schreine:** 3 zufällige Angebote (Schaden, Reichweite, Gold, Arbeitstempo, kritischer Schaden; je nach Stärke teurer), neu würfeln kostet Gold. Jeder Schrein macht den nächsten teurer.
 - Munition und Schreine gehen beim Zeitsprung verloren.
 
@@ -110,7 +110,7 @@ Kategorien: weiteste Distanz, meiste Zeitsprünge, meiste Upgrades, wenigste Sch
 
 Das Grundspiel ist bewusst härter, damit der Zeitsprung der Kern ist. Stand Runde 4: Hindernisse haben mehr Leben (hp0 28, ×4,95 je Zeitalter), Kanonen-Upgrades sind günstiger (c0 13, ×4,85 je Zeitalter), Ressourcen-Upgrades teurer (Arbeiter 40, Werkzeug 20, ×3,9 je Zeitalter) und Upgrades brauchen mehr Teile (×1,85 je Zeitalter). So fließen je nach Zeitalter etwa 25–45 % des Goldes in Arbeiter/Werkzeug.
 
-- `node tools/sim.js` (ein Lauf ohne Zeitsprung) zeigt je Zeitalter, wann Hindernisse und Upgrades fertig sind, wie sich das Gold auf Kanone/Ressourcen verteilt und wie viel vom Klicken kommt: ca. **5,9 Stunden** bis 1.000 km (Stand 0.7.0, Aufstieg ohne Pflicht-Upgrades).
+- `node tools/sim.js` (ein Lauf ohne Zeitsprung) zeigt je Zeitalter, wann Hindernisse und Upgrades fertig sind, wie sich das Gold auf Kanone/Ressourcen verteilt und wie viel vom Klicken kommt: ca. **5,3 Stunden** bis 1.000 km (Stand 0.7.2: Aufstieg ohne Pflicht-Upgrades, offene Upgrades geschenkt).
 - `node tools/sim-rebirth.js`: ca. **4,8 Stunden und 3 Zeitsprünge** bis 1.000 km.
 - Alle Werte in `core.js` (`P`), auch die Zeitwerkstatt-Effekte (`wsAder`, `wsLauf` …).
 
