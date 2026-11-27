@@ -447,7 +447,8 @@
     return true;
   }
   const upgradesDone = s => LINES.every(L => s.cur[L.id] >= P.steps);
-  const canAgeUp = s => s.age < AGES.length - 1 && upgradesDone(s) && ageObstaclesDone(s);
+  // Aufstieg: alle Hindernisse des Zeitalters zerstört reicht, Upgrades sind freiwillig (Nico, 2026-11-27)
+  const canAgeUp = s => s.age < AGES.length - 1 && ageObstaclesDone(s);
 
   function buy(s, key) {
     const u = upgList(s).find(x => x.key === key);

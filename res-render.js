@@ -290,6 +290,114 @@
       c.restore();
     }
 
+    // ---------- Der Schütze beim Abbauen: je Ressource eine eigene, deutlich sichtbare Bewegung (kein Draufhauen) ----------
+    // u = 0..1 Fortschritt der Aktion (ca. 0,75 s); ohne Antippen leichte Ruhebewegung
+    const ACT = ['saw', 'lift', 'bellows', 'cart', 'crank', 'quench', 'sieve', 'lever', 'type', 'channel'];
+    const ACT_DUR = 0.75;
+    function body(lean, crouch, step, shirt) {
+      c.strokeStyle = '#3a2a1c'; c.lineWidth = 5; c.lineCap = 'round';
+      const kh = 16 - crouch * 6; // Knie beugen
+      c.beginPath(); c.moveTo(-3, -kh); c.lineTo(-5 - step - crouch * 3, -kh / 2); c.lineTo(-4 - step, -1); c.moveTo(3, -kh); c.lineTo(5 + step + crouch * 3, -kh / 2); c.lineTo(4 + step, -1); c.stroke();
+      c.save(); c.translate(0, -kh); c.rotate(lean); c.translate(0, kh);
+      const y0 = -kh + 16; c.translate(0, -y0 + 0);
+      c.fillStyle = shirt; rr(c, -9, -38 + (16 - kh), 18, 24, 6); c.fill(); c.fillStyle = 'rgba(0,0,0,0.15)'; c.fillRect(-9, -20 + (16 - kh), 18, 3);
+      const hy = -46 + (16 - kh);
+      c.fillStyle = '#f0c79a'; c.beginPath(); c.arc(0, hy, 8, 0, TAU); c.fill();
+      c.fillStyle = '#ffc53d'; c.beginPath(); c.arc(0, hy - 2, 9, Math.PI, 0); c.fill(); c.fillRect(-10, hy - 3, 20, 3);
+      c.fillStyle = '#222'; c.beginPath(); c.arc(3, hy, 1.3, 0, TAU); c.fill();
+      c.strokeStyle = '#8a3a2a'; c.lineWidth = 1; c.beginPath(); c.arc(3.5, hy + 3, 1.8, 0.2, Math.PI - 0.6); c.stroke();
+      c.restore();
+      const sy0 = -33 + (16 - kh);
+      return [3 + Math.sin(lean) * (33 - sy0 - 17 + 18) * 0.55, sy0 + (1 - Math.cos(lean)) * 18];
+    }
+    function hands(sx, sy, fx, fy, bx, by) { limb(sx - 4, sy, bx, by, '#e2b688'); const [hx, hy] = limb(sx, sy, fx, fy, '#f0c79a'); c.fillStyle = '#f0c79a'; c.beginPath(); c.arc(hx, hy, 2.4, 0, TAU); c.fill(); return [hx, hy]; }
+    function doer(i, x, gy, s, u, t) {
+      const a = ACT[i], on = u > 0 && u < 1, w = on ? Math.sin(u * Math.PI) : 0, idle = Math.sin(t * 2) * 0.03;
+      c.save(); c.translate(x, gy); c.scale(s, s);
+      if (a === 'saw') { // Holz sägen: Sägebock mit Stamm, Säge fährt hin und her, Scheibe fällt ab
+        c.fillStyle = '#5a3a1f'; c.save(); c.translate(30, 0); [[-10, 1], [10, -1]].forEach(([dx, d]) => { c.beginPath(); c.moveTo(dx - 5 * d, 0); c.lineTo(dx, -16); c.lineTo(dx + 2, -16); c.lineTo(dx - 3 * d + 2, 0); c.fill(); }); c.restore();
+        c.fillStyle = '#8a5a2b'; rr(c, 12, -24, 40, 9, 4); c.fill(); c.fillStyle = '#e2b77a'; c.beginPath(); c.ellipse(52, -19.5, 3, 4.5, 0, 0, TAU); c.fill();
+        if (on && u > 0.75) { const f = (u - 0.75) / 0.25; c.save(); c.translate(54 + f * 6, -19 + f * f * 18); c.rotate(f * 2); c.fillStyle = '#8a5a2b'; rr(c, -3, -4.5, 6, 9, 2); c.fill(); c.fillStyle = '#e2b77a'; c.fillRect(-3, -4, 1.5, 8); c.restore(); }
+        const sx2 = on ? Math.sin(u * TAU * 3) * 9 : 0, [shx, shy] = body(0.12 + Math.abs(sx2) * 0.005, 0.2, 0, '#7b5230');
+        const hx = 18 + sx2, hy = -26;
+        c.save(); c.translate(hx, hy); c.fillStyle = '#c4ccd9'; c.beginPath(); c.moveTo(2, -1); c.lineTo(30, 4); c.lineTo(30, 7); c.lineTo(2, 4); c.closePath(); c.fill();
+        c.strokeStyle = '#8d939b'; c.lineWidth = 0.8; c.beginPath(); for (let q = 4; q < 30; q += 3) { c.moveTo(q, 4 + q * 0.1); c.lineTo(q + 1.5, 6 + q * 0.1); } c.stroke(); c.fillStyle = '#7a5230'; rr(c, -4, -3, 7, 8, 2); c.fill(); c.restore();
+        hands(shx, shy, hx, hy + 1, hx - 3, hy + 3);
+      } else if (a === 'lift') { // Stein aufheben, hochstemmen, zum Lager werfen
+        const cr = !on ? 0 : u < 0.3 ? u / 0.3 : u < 0.55 ? 1 - (u - 0.3) / 0.25 : 0;
+        const up = !on ? 0 : u < 0.3 ? 0 : u < 0.55 ? (u - 0.3) / 0.25 : u < 0.7 ? 1 : 0;
+        const thr = on && u >= 0.55 && u < 0.75 ? (u - 0.55) / 0.2 : 0;
+        const [shx, shy] = body(-0.1 * up + 0.35 * thr + 0.25 * cr, cr, 0, '#7b5230');
+        const sy = -6 - up * 52 + cr * 4, sx2 = 10 + thr * 16;
+        if (on && u < 0.7) item(1, sx2 + 4, sy - 2, 9, u * 2);
+        else if (!on) item(1, 18, -6, 8, 0);
+        hands(shx, shy, sx2 + 8, sy + 4, sx2, sy + 4);
+      } else if (a === 'bellows') { // Blasebalg mit beiden Armen kräftig zusammendrücken (zweimal)
+        const sq = on ? Math.abs(Math.sin(u * TAU)) : 0.1 + Math.sin(t * 2) * 0.05;
+        c.fillStyle = '#6b4423'; c.beginPath(); c.moveTo(10, -6); c.lineTo(40, -6 - 2); c.lineTo(40, -6 - 16 + sq * 10); c.lineTo(10, -6 - 26 + sq * 16); c.closePath(); c.fill();
+        c.strokeStyle = '#3b2414'; c.lineWidth = 1; for (let q = 1; q < 4; q++) { c.beginPath(); c.moveTo(10 + q * 7, -6 - q * 0.5); c.lineTo(10 + q * 7, -6 - 26 + sq * 16 + q * 2.5); c.stroke(); }
+        c.fillStyle = '#a0703c'; c.save(); c.translate(10, -32 + sq * 16); c.rotate(-0.25 + sq * 0.35); c.fillRect(-4, -2, 26, 4); c.restore();
+        c.fillStyle = '#5d5f66'; c.fillRect(40, -12, 12, 4);
+        if (on && sq > 0.6) { c.fillStyle = `rgba(255,200,120,${sq - 0.4})`; for (let q = 0; q < 3; q++) { c.beginPath(); c.arc(56 + q * 5, -10 + (q - 1) * 3, 2 + q, 0, TAU); c.fill(); } }
+        const [shx, shy] = body(0.25 + sq * 0.2, 0.3 * sq, 0, '#7b5230');
+        hands(shx, shy, 14, -34 + sq * 16, 10, -33 + sq * 16);
+      } else if (a === 'cart') { // Lore auf Schienen weit hinausschieben und zurückziehen
+        const d = on ? Math.sin(u * Math.PI) * 26 : 0;
+        c.fillStyle = '#5a4a3a'; c.fillRect(10, -2, 70, 2); for (let q = 12; q < 80; q += 8) c.fillRect(q, -2, 3, 3);
+        const x2 = 18 + d; c.fillStyle = '#5d5f66'; c.beginPath(); c.moveTo(x2, -24); c.lineTo(x2 + 28, -24); c.lineTo(x2 + 24, -7); c.lineTo(x2 + 4, -7); c.fill();
+        c.fillStyle = '#4e5056'; c.beginPath(); c.arc(x2 + 10, -25, 6, Math.PI, 0); c.arc(x2 + 19, -25, 5, Math.PI, 0); c.fill(); c.fillStyle = '#b8603e'; c.beginPath(); c.arc(x2 + 13, -27, 1.6, 0, TAU); c.fill();
+        c.fillStyle = '#2a2a2e'; [x2 + 8, x2 + 20].forEach(wx => { c.save(); c.translate(wx, -5); c.rotate(d * 0.3); c.beginPath(); c.arc(0, 0, 4, 0, TAU); c.fill(); c.fillStyle = '#8a8d94'; c.fillRect(-0.7, -4, 1.4, 8); c.fillStyle = '#2a2a2e'; c.restore(); });
+        c.save(); c.translate(d * 0.85, 0); const [shx, shy] = body(0.38, 0.15, on ? Math.sin(u * TAU * 2) * 3 : 0, '#7b5230'); hands(shx, shy, x2 - d * 0.85 + 2, -22, x2 - d * 0.85, -18); c.restore();
+      } else if (a === 'crank') { // großes Seilrad zwei volle Umdrehungen kurbeln, Seil wickelt sich auf
+        const an = (on ? u * TAU * 2 : 0) + t * 0.3;
+        c.fillStyle = '#7a5230'; c.fillRect(30, -34, 4, 34); c.fillRect(48, -34, 4, 34);
+        c.save(); c.translate(41, -32); c.rotate(an); c.strokeStyle = '#8a5a2b'; c.lineWidth = 3; c.beginPath(); c.arc(0, 0, 14, 0, TAU); c.stroke(); c.lineWidth = 2; for (let q = 0; q < 4; q++) { c.rotate(TAU / 4); c.beginPath(); c.moveTo(0, 0); c.lineTo(14, 0); c.stroke(); } c.restore();
+        c.fillStyle = '#c9a46a'; c.beginPath(); c.arc(41, -32, 5 + (on ? u * 2 : 0), 0, TAU); c.fill();
+        c.strokeStyle = '#c9a46a'; c.lineWidth = 2; c.beginPath(); c.moveTo(41, -27); c.quadraticCurveTo(55, -10, 70, 0); c.stroke();
+        const hx = 41 + Math.cos(an) * 14 - 14, hy = -32 + Math.sin(an) * 14;
+        c.strokeStyle = '#5a3a1f'; c.lineWidth = 2.5; c.beginPath(); c.moveTo(41 + Math.cos(an) * 14, -32 + Math.sin(an) * 14); c.lineTo(hx + 2, hy); c.stroke();
+        const [shx, shy] = body(0.12 + Math.cos(an) * 0.08, 0.1, 0, '#7b5230'); hands(shx, shy, hx, hy, hx - 2, hy + 1);
+      } else if (a === 'quench') { // glühenden Stahl mit der Zange in den Wassereimer tauchen: Dampf zischt
+        c.fillStyle = '#6b4423'; rr(c, 30, -16, 22, 16, 3); c.fill(); c.fillStyle = '#4bb8ff'; c.fillRect(32, -14, 18, 4); c.fillStyle = '#3b2414'; c.fillRect(30, -10, 22, 2);
+        const dip = !on ? 0 : u < 0.35 ? u / 0.35 : u < 0.65 ? 1 : 1 - (u - 0.65) / 0.35;
+        const hx = 22 + dip * 4, hy = -36 + dip * 22, glow = !on ? 1 : u < 0.5 ? 1 : Math.max(0, 1 - (u - 0.5) * 4);
+        c.strokeStyle = '#3d3f45'; c.lineWidth = 2; c.beginPath(); c.moveTo(hx, hy); c.lineTo(hx + 12, hy + 6); c.moveTo(hx, hy + 2); c.lineTo(hx + 12, hy + 7); c.stroke();
+        c.fillStyle = glow > 0 ? `rgb(255,${Math.round(120 + 100 * (1 - glow))},${Math.round(60 + 120 * (1 - glow))})` : '#9aa6b2'; c.save(); c.translate(hx + 14, hy + 7); c.rotate(0.45); c.fillRect(-2, -2, 14, 4); c.restore();
+        if (on && u > 0.38) for (let q = 0; q < 4; q++) { const f = ((u - 0.38) * 2 + q * 0.25) % 1; c.fillStyle = `rgba(240,240,240,${0.6 * (1 - f)})`; c.beginPath(); c.arc(38 + q * 4 + f * 6, -18 - f * 30, 3 + f * 8, 0, TAU); c.fill(); }
+        const [shx, shy] = body(0.15 + dip * 0.2, 0.2 * dip, 0, '#7b5230'); hands(shx, shy, hx, hy, hx - 3, hy + 2);
+      } else if (a === 'sieve') { // Pulver sieben: Sieb kräftig hin und her schütteln, schwarzes Pulver rieselt
+        const sh = on ? Math.sin(u * TAU * 4) * 7 : 0;
+        c.fillStyle = '#6b4423'; rr(c, 22, -12, 26, 12, 3); c.fill(); c.fillStyle = '#222'; c.beginPath(); c.ellipse(35, -12, 12, 3, 0, 0, TAU); c.fill();
+        const sx2 = 24 + sh; c.strokeStyle = '#a0703c'; c.lineWidth = 3; c.beginPath(); c.ellipse(sx2 + 11, -30, 13, 4, 0, 0, TAU); c.stroke(); c.strokeStyle = 'rgba(60,60,60,0.8)'; c.lineWidth = 0.8; c.beginPath(); for (let q = -10; q <= 10; q += 3) { c.moveTo(sx2 + 11 + q, -33); c.lineTo(sx2 + 11 + q, -27); } c.stroke();
+        if (on) { c.fillStyle = '#222'; for (let q = 0; q < 10; q++) { const f = ((u * 3 + q / 10) % 1); c.fillRect(sx2 + 3 + (q * 7) % 18, -28 + f * 16, 1.5, 1.5); } }
+        const [shx, shy] = body(0.1, 0.1, 0, '#7b5230'); hands(shx, shy, sx2, -30, sx2 - 2, -29);
+      } else if (a === 'lever') { // großen Hebel mit ganzem Körpergewicht herunterziehen
+        const la = !on ? -0.5 : u < 0.4 ? -0.5 + 1.5 * (u / 0.4) : u < 0.6 ? 1 : 1 - 1.5 * (u - 0.6) / 0.4;
+        c.fillStyle = '#3b3633'; rr(c, 22, -12, 22, 12, 2); c.fill(); c.fillStyle = '#5a5550'; c.beginPath(); c.arc(33, -12, 5, Math.PI, 0); c.fill();
+        const ex = 33 - Math.sin(-la) * 34, ey = -12 - Math.cos(la) * 34;
+        c.strokeStyle = '#8f8a80'; c.lineWidth = 4; c.beginPath(); c.moveTo(33, -12); c.lineTo(ex, ey); c.stroke(); c.fillStyle = '#c0392b'; c.beginPath(); c.arc(ex, ey, 4, 0, TAU); c.fill();
+        if (on && u > 0.38 && u < 0.62) { c.strokeStyle = '#ffd23f'; c.lineWidth = 2; for (let q = 0; q < 3; q++) { c.beginPath(); c.moveTo(46, -20 + q * 6); c.lineTo(54, -22 + q * 6); c.stroke(); } }
+        const [shx, shy] = body(0.1 + 0.3 * Math.max(0, la), 0.35 * Math.max(0, la), 0, '#7b5230'); hands(shx, shy, ex - 2, ey + 1, ex - 4, ey + 2);
+      } else if (a === 'type') { // am Pult schnell tippen, Bildschirm läuft, ein Chip fährt heraus
+        c.fillStyle = '#3b4a6a'; c.fillRect(30, -18, 4, 18); c.fillStyle = '#1b1d22'; c.save(); c.translate(18, -22); c.rotate(-0.2); rr(c, 0, 0, 26, 6, 2); c.fill(); c.restore();
+        c.fillStyle = '#1b1d22'; rr(c, 30, -48, 24, 20, 3); c.fill(); c.fillStyle = on ? '#bff8ff' : '#4be3ff'; c.fillRect(32, -46, 20, 16);
+        c.fillStyle = '#1b1d22'; for (let q = 0; q < 4; q++) c.fillRect(33, -44 + q * 3.5, 4 + ((q * 5 + Math.floor((on ? u * 30 : 0) + t * 3)) % 12), 1.2);
+        if (on && u > 0.5) { const f = (u - 0.5) / 0.5; item(8, 56 + f * 6, -30 + f * 4, 5, 0); }
+        const tp = on ? Math.abs(Math.sin(u * TAU * 5)) : 0;
+        const [shx, shy] = body(0.12, 0.05, 0, '#7b5230'); hands(shx, shy, 26, -26 + (tp > 0.5 ? 3 : 0), 20, -25 + (tp <= 0.5 ? 3 : 0));
+      } else { // Plasma: Arme heben, Energie sammeln, Strahl in den Reaktor
+        const up = on ? Math.min(1, u / 0.4) : 0, beam = on && u > 0.4 ? Math.sin((u - 0.4) / 0.6 * Math.PI) : 0;
+        const [shx, shy] = body(-0.05 + 0.15 * beam, 0, 0, '#7b5230');
+        const hx = 10 + 10 * beam, hy = -22 - 30 * up + 14 * beam;
+        const [qx, qy] = hands(shx, shy, hx, hy, hx - 4, hy + 1);
+        const g = c.createRadialGradient(qx, qy - 4, 1, qx, qy - 4, 8 + 10 * (up + beam)); g.addColorStop(0, 'rgba(255,255,255,0.95)'); g.addColorStop(0.4, 'rgba(127,246,255,0.7)'); g.addColorStop(1, 'rgba(255,122,217,0)');
+        c.fillStyle = g; c.beginPath(); c.arc(qx, qy - 4, 8 + 10 * (up + beam), 0, TAU); c.fill();
+        if (beam > 0.1) { c.strokeStyle = `rgba(191,248,255,${beam})`; c.lineWidth = 2 + 4 * beam; c.beginPath(); c.moveTo(qx, qy - 4); for (let q = 1; q <= 6; q++) c.lineTo(qx + q * 13, qy - 4 - q * 6 + (q % 2 ? 4 : -4) * Math.sin(t * 30)); c.stroke(); }
+      }
+      c.restore();
+    }
+    let actT = -1;
+
     function geom(i) {
       const s = compact ? Math.max(0.3, Math.min(1.6, Math.min(W / 250, (H - 16) / 140))) : Math.max(0.6, Math.min(2.2, Math.min(W / 330, (H - 40) / 210)));
       const gy = compact ? Math.min(H - 8, H * 0.5 + 75 * s) : H - Math.max(26, H * 0.16), sx = W * (compact ? 0.44 : 0.47);
@@ -297,7 +405,7 @@
     }
 
     function tap(i, gain) {
-      pulse = 1; shake = 0.25;
+      pulse = 1; shake = 0.25; actT = 0;
       const g = geom(i), col = CHIP[i];
       if (i === 0) for (let k = 0; k < 6; k++) chips.push({ x: g.sx + (Math.random() - 0.5) * 50 * g.s, y: g.gy - (90 + Math.random() * 30) * g.s, vx: (Math.random() - 0.5) * 60, vy: 10, r: 3 * g.s, col: k % 2 ? '#5fae4a' : '#3f8a3a', life: 1.4, leaf: true, delay: 0.12 });
       for (let k = 0; k < 9; k++) chips.push({ delay: 0.13, x: g.hx, y: g.hy, vx: (Math.random() - 0.2) * 260 * g.s, vy: (-60 - Math.random() * 220) * g.s, r: (2 + Math.random() * 3) * g.s, col: col[k % 3], life: 0.6 + Math.random() * 0.4 });
@@ -348,7 +456,8 @@
       }
       if (st.wk > 8) { c.font = `700 ${Math.round(11 * s)}px Fredoka, system-ui, sans-serif`; c.fillStyle = '#fff'; c.textAlign = 'left'; c.fillText('+' + (st.wk - 8) + ' Arbeiter', g.sx + 30 * s, g.gy + 6); }
       // Der Schütze baut selbst ab
-      figure(g.px, g.gy, s, MOTION[i], pulse > 0 ? strokeK(1 - pulse) : Math.sin(t * 2) * 0.05, '#7b5230', null, 0, t);
+      if (actT >= 0) { actT += dt; if (actT > ACT_DUR) actT = -1; }
+      doer(i, g.px, g.gy, s, actT >= 0 ? actT / ACT_DUR : 0, t);
       c.filter = 'none';
       // Splitter und fliegende Ressourcen
       chips.forEach(p => { if (p.delay > 0) { p.delay -= dt; return; } p.x += p.vx * dt + (p.leaf ? Math.sin(t * 6 + p.y) * 20 * dt : 0); p.y += p.vy * dt; p.vy += (p.leaf ? 40 : 700) * dt; p.life -= dt; if (p.y > g.gy) { p.y = g.gy; p.vy *= -0.3; p.vx *= 0.5; } c.globalAlpha = Math.max(0, Math.min(1, p.life * 2)); c.fillStyle = p.col; c.fillRect(p.x - p.r / 2, p.y - p.r / 2, p.r, p.r); });

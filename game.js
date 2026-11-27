@@ -4,7 +4,7 @@
   const J = window.JS;
   const $ = q => document.querySelector(q);
   const SAVE = 'jushoot-v2', SCORES = 'jushoot-scores';
-  const VERSION = '0.6.0'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
+  const VERSION = '0.7.0'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
   const G = 9.81e-3; // km/s²
 
   // ---------- Speichern ----------
@@ -660,8 +660,8 @@
       <div class="card"><b>Dein Schütze</b> <span class="muted">· ${esc(A.name)}</span>${skinPicker()}</div>`;
     if (!last) {
       h += `<div class="card ${J.canAgeUp(s) ? 'ready-card' : ''}"><b>Aufstieg zur ${esc(J.AGES[s.age + 1].name)}</b>
-        <div class="muted">${J.canAgeUp(s) ? 'Alles erledigt!' : 'Dafür brauchst du alle Upgrades und musst alle Hindernisse dieses Zeitalters zerstören.'}</div>
-        <div class="req"><span>Upgrades ${done}/${list.length}</span><div class="prog"><i style="width:${done / list.length * 100}%"></i></div></div>
+        <div class="muted">${J.canAgeUp(s) ? (J.upgradesDone(s) ? 'Alles erledigt!' : 'Alle Hindernisse sind zerstört. Du kannst aufsteigen, offene Upgrades dieses Zeitalters verfallen dann.') : 'Zerstöre alle Hindernisse dieses Zeitalters. Upgrades helfen dabei, sind aber freiwillig.'}</div>
+        <div class="req"><span>Upgrades ${done}/${list.length} (freiwillig)</span><div class="prog"><i style="width:${done / list.length * 100}%"></i></div></div>
         <div class="req"><span>Hindernisse ${obsDone}/${obs.length}</span><div class="prog"><i style="width:${obsDone / obs.length * 100}%"></i></div></div>
         ${J.canAgeUp(s) ? `<button class="btn ready" data-ageup style="width:100%;margin-top:8px">Aufsteigen: ${esc(J.AGES[s.age + 1].cannon)}</button>` : ''}</div>`;
     }
