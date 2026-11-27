@@ -741,6 +741,47 @@
       c.restore();
     }
 
+    // ---------- Spezialmunition ----------
+    function drawAmmo(id, x, y, vx, vy, t) {
+      const ang = Math.atan2(-vy, vx);
+      c.save(); c.translate(x, y);
+      if (id === 'pfeil') { // Pfeil mit Federn und Metallspitze, zeigt in Flugrichtung
+        c.rotate(ang); c.strokeStyle = '#8a5a2b'; c.lineWidth = 2.5; c.beginPath(); c.moveTo(-16, 0); c.lineTo(10, 0); c.stroke();
+        c.fillStyle = '#c4ccd9'; c.beginPath(); c.moveTo(16, 0); c.lineTo(8, -4.5); c.lineTo(8, 4.5); c.closePath(); c.fill(); c.strokeStyle = '#6d7078'; c.lineWidth = 1; c.stroke();
+        c.fillStyle = '#e2473b'; [-1, 1].forEach(d => { c.beginPath(); c.moveTo(-16, 0); c.lineTo(-10, 0); c.lineTo(-14, d * 6); c.lineTo(-19, d * 6); c.closePath(); c.fill(); });
+      } else if (id === 'spreng') { // Bombe mit brennender Lunte
+        c.fillStyle = '#1b1a19'; c.beginPath(); c.arc(0, 0, 7.5, 0, TAU); c.fill(); c.fillStyle = 'rgba(255,255,255,0.35)'; c.beginPath(); c.arc(-2.5, -2.5, 2.2, 0, TAU); c.fill();
+        c.fillStyle = '#4a4540'; c.fillRect(-2.5, -10, 5, 3.5);
+        c.strokeStyle = '#c9a46a'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(0, -10); c.quadraticCurveTo(4, -14, 3, -17); c.stroke();
+        const fl = 0.6 + 0.4 * Math.sin(t * 40); c.fillStyle = `rgba(255,180,60,${fl})`; c.beginPath(); c.arc(3, -17.5, 3.2, 0, TAU); c.fill(); c.fillStyle = '#fff3b0'; c.beginPath(); c.arc(3, -17.5, 1.3, 0, TAU); c.fill();
+      } else if (id === 'bohrer') { // Bohrkugel: Spitze mit Spiralrillen, dreht sich
+        c.rotate(ang); const g = c.createLinearGradient(0, -7, 0, 7); g.addColorStop(0, '#e8eef5'); g.addColorStop(1, '#5d6a78'); c.fillStyle = g;
+        c.beginPath(); c.moveTo(18, 0); c.lineTo(-6, -7); c.lineTo(-10, 0); c.lineTo(-6, 7); c.closePath(); c.fill();
+        c.strokeStyle = 'rgba(30,40,50,0.6)'; c.lineWidth = 1.2; for (let k = 0; k < 4; k++) { const o = ((t * 30 + k * 6) % 24) - 8; c.beginPath(); c.moveTo(o, -6 + Math.max(0, o) * 0.3); c.lineTo(o + 4, 6 - Math.max(0, o) * 0.3); c.stroke(); }
+      } else if (id === 'huepf') { // Hüpfkugel: roter Gummiball mit Streifen
+        c.rotate(t * 8); c.fillStyle = '#e2473b'; c.beginPath(); c.arc(0, 0, 7.5, 0, TAU); c.fill();
+        c.strokeStyle = '#ffd23f'; c.lineWidth = 2; c.beginPath(); c.arc(0, 0, 7.5, -0.6, 0.6); c.stroke(); c.beginPath(); c.arc(0, 0, 7.5, Math.PI - 0.6, Math.PI + 0.6); c.stroke();
+        c.fillStyle = 'rgba(255,255,255,0.45)'; c.beginPath(); c.arc(-2.5, -2.5, 2, 0, TAU); c.fill();
+      } else if (id === 'gold') { // Goldkugel mit Funkeln
+        const g = c.createRadialGradient(-2, -2, 1, 0, 0, 8); g.addColorStop(0, '#fff6c0'); g.addColorStop(0.5, '#ffd23f'); g.addColorStop(1, '#b8792f'); c.fillStyle = g; c.beginPath(); c.arc(0, 0, 7.5, 0, TAU); c.fill();
+        const tw = Math.sin(t * 12); if (tw > 0) { c.fillStyle = `rgba(255,255,255,${tw})`; c.fillRect(-10, -0.6, 20, 1.2); c.fillRect(-0.6, -10, 1.2, 20); }
+      }
+      c.restore();
+    }
+    // Schrein-Vorschau für den Shop: kleiner Steinaltar mit Symbol-Flamme in der Farbe des Effekts
+    function drawShrine(cv, k, age) {
+      const keep = c; c = cv.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, 88, 88);
+      const col = { dmg: '#ff6a2a', range: '#7ff6ff', gold: '#ffd23f', work: '#5ee07a', crit: '#b58cff' }[k] || '#fff';
+      const g = c.createRadialGradient(44, 34, 2, 44, 34, 40); g.addColorStop(0, col + '88'); g.addColorStop(1, col + '00'); c.fillStyle = g; c.fillRect(0, 0, 88, 88);
+      c.fillStyle = '#6d6a62'; rr(c, 18, 66, 52, 12, 3); c.fill(); c.fillStyle = '#8d8a80'; rr(c, 24, 46, 40, 22, 3); c.fill();
+      c.fillStyle = '#a7a39a'; rr(c, 14, 40, 60, 8, 3); c.fill();
+      c.fillStyle = '#5a3a1f'; [22, 62].forEach(x => c.fillRect(x - 3, 14, 6, 28)); c.fillStyle = '#c0392b'; rr(c, 12, 10, 64, 7, 3); c.fill(); c.fillRect(16, 20, 56, 4);
+      c.fillStyle = col; c.beginPath(); c.moveTo(44, 24); c.quadraticCurveTo(54, 34, 44, 42); c.quadraticCurveTo(34, 34, 44, 24); c.fill();
+      c.fillStyle = '#fff'; c.beginPath(); c.arc(44, 36, 3, 0, TAU); c.fill();
+      c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(30, 52, 28, 2); c.fillRect(30, 58, 28, 2);
+      c = keep;
+    }
+
     // ---------- Flieger ----------
     function drawFlyer(v, f) {
       const x = v.x0 + f.x * v.scale, y = v.groundY - f.y * v.scale;
@@ -1165,7 +1206,8 @@
       // Kugel
       if (v.ball) {
         const bx = v.x0 + v.ball.x * v.scale, by = gy - v.ball.y * v.scale;
-        drawBall(v.age, v.cur ? v.cur.wucht : 0, bx, Math.min(by, gy - 4), v.ball.vx, v.ball.vy, v.time, 1);
+        if (v.ball.ammo && v.ball.ammo !== 'kugel') drawAmmo(v.ball.ammo, bx, Math.min(by, gy - 4), v.ball.vx, v.ball.vy, v.time);
+        else drawBall(v.age, v.cur ? v.cur.wucht : 0, bx, Math.min(by, gy - 4), v.ball.vx, v.ball.vy, v.time, 1);
         if (by < -8) { // Kugel oberhalb des Bildes: Pfeil
           c.fillStyle = '#fff'; c.beginPath(); c.moveTo(bx, 4); c.lineTo(bx - 6, 14); c.lineTo(bx + 6, 14); c.fill();
           c.font = '600 11px Fredoka, system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top'; c.fillText(J.fmtKm(v.ball.y) + ' hoch', bx, 16);
@@ -1201,7 +1243,7 @@
       drawBar(v);
     }
 
-    return { resize, draw, muzzle, partColor, previewPlayer };
+    return { resize, draw, muzzle, partColor, previewPlayer, drawShrine };
   }
 
   root.makeRenderer = makeRenderer;

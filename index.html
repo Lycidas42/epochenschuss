@@ -184,6 +184,17 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 22px; marg
 .dev-toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; margin-top: 8px; font-size: 13px; }
 .dev-toggles input { accent-color: var(--accent); }
 
+/* Munition und Schreine */
+.ammobar { display: flex; gap: 6px; padding: 5px 10px; background: #20160d; border-top: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+.ammobar[hidden] { display: none; }
+.ammo-chip { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; background: var(--panel); border: 2px solid var(--line); font-weight: 600; font-size: 14px; font-variant-numeric: tabular-nums; }
+.ammo-chip.on { border-color: var(--gold); background: var(--panel-2); box-shadow: 0 0 0 2px rgba(255,210,63,.25); }
+.ammo-ic { font-size: 26px; width: 36px; text-align: center; flex: none; }
+.shrine-cv { width: 44px; height: 44px; flex: none; border-radius: 10px; background: #241910; }
+.shrine-eff { font-weight: 600; color: var(--gold); font-size: 14px; }
+.shrine-sum { border-color: #8a6a3a; }
+.tabs button { font-size: 13px; padding: 9px 2px; }
+
 /* Zeitsprung & Zeitwerkstatt */
 :root { --sp: #b58cff; --sp-2: #4be3ff; }
 .pill.sp b { color: var(--sp); }
@@ -246,6 +257,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 22px; marg
     </div>
     <div id="boni" class="boni" aria-label="Aktive Boni"></div>
     <button id="chalExit" class="chal-exit" hidden>Challenge abbrechen</button>
+    <div class="ammobar" id="ammoBar" hidden aria-label="Munition"></div>
     <div class="controls">
       <div class="sliders">
         <label class="angle"><span>Winkel <b id="angTxt">45°</b></span><input type="range" id="angle" min="10" max="80" value="45" step="1"></label>
@@ -264,11 +276,13 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 22px; marg
     <div class="mats" id="mats"></div>
     <nav class="tabs">
       <button data-tab="cannon" class="on">Kanone <span class="badge" id="cBadge"></span></button>
+      <button data-tab="shop">Shop</button>
       <button data-tab="chal">Challenges</button>
       <button data-tab="jump" id="jumpTab" hidden>Zeitsprung <span class="badge" id="jBadge"></span></button>
       <button data-tab="scores">Rekorde</button>
     </nav>
     <div id="tab-cannon" class="tab on"></div>
+    <div id="tab-shop" class="tab"></div>
     <div id="tab-chal" class="tab"></div>
     <div id="tab-jump" class="tab"></div>
     <div id="tab-scores" class="tab"></div>

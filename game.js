@@ -4,6 +4,7 @@
   const J = window.JS;
   const $ = q => document.querySelector(q);
   const SAVE = 'jushoot-v2', SCORES = 'jushoot-scores';
+  const VERSION = '0.3.0'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
   const G = 9.81e-3; // km/s²
 
   // ---------- Speichern ----------
@@ -204,14 +205,16 @@
     view.bar = null;
     sfx(qq.crit ? 'perfect' : 'fire');
     if (qq.crit) s.st.perfect++;
-    const a = rad(s.angle), v0 = vel(s.power, qq.q);
+    const ammo = J.takeAmmo(s);
+    const a = rad(s.angle), v0 = vel(s.power, qq.q) * (ammo === 'pfeil' ? Math.sqrt(0.85) : 1);
     const Rq = v0 * v0 / G;
     const tRef = 2 * v0 * Math.SQRT1_2 / G, tTarget = 1.7 + 0.45 * Math.log10(1 + Rq * 10);
     const m = R.muzzle(s.age, s.angle, s.cur), sc = view.scale, e = view.event || {};
-    shot = { inChal: !!chal, q: qq.q, crit: qq.crit, v0, ts: tRef / tTarget, starGold: 0, birdGold: 0, bonus: 0, blocked: null,
+    shot = { inChal: !!chal, ammo, pierced: [], bounces: 0, q: qq.q, crit: qq.crit, v0, ts: tRef / tTarget, starGold: 0, birdGold: 0, bonus: 0, blocked: null,
       predD: Rq * Math.sin(2 * a), predApex: Rq * Math.sin(a) ** 2 / 2,
       g: G * (e.type === 'heavy' ? 1.3 : 1), wind: e.wind || 0, drag: e.type === 'rain' ? 0.5 / tRef : 0 };
-    view.ball = { x: m.x / sc, y: -m.y / sc, vx: v0 * Math.cos(a), vy: v0 * Math.sin(a) };
+    view.ball = { x: m.x / sc, y: -m.y / sc, vx: v0 * Math.cos(a), vy: v0 * Math.sin(a), ammo };
+    if (ammo !== 'kugel') renderAmmoBar();
     view.trail = [[view.ball.x, view.ball.y]]; view.trailA = 1; view.preview = [];
     view.recoil = 1; view.flash = 1; view.pose = 'fire'; view.act = 1;
     if (qq.q >= 1) { // Treffer im grünen Bereich: kurzer Effekt an der Mündung
@@ -240,8 +243,13 @@
     sfx('bad');
   }
 
+  // Schaden des aktuellen Schusses (Kritisch, Pfeil ×3)
+  function shotDmg() { const st = J.stats(s); return st.dmg * (shot.crit ? st.crit : 1) * (shot.ammo === 'pfeil' ? 3 : 1); }
+  // Bohrkugel: durchschlägt bis zu 3 Teile, ohne abzuprallen
+  function pierce(key) { if (shot.ammo !== 'bohrer' || shot.pierced.length >= 3) return false; shot.pierced.push(key); return true; }
   // Die Kugel fliegt frei über Hindernisse – nur wer ein Teil trifft, macht Schaden
   function checkObstacles(b) {
+    if (shot.ammo === 'spreng') return; // Sprengkugel fliegt ohne Schaden durch Hindernisse
     const br = 5 / view.scale;
     for (const ob of view.obstacles) {
       const o = ob.o;
@@ -249,11 +257,11 @@
       if (b.x < o.at - o.u * 1.5 || b.x > o.end + o.u) continue;
       const hp = s.oh[o.id];
       for (let i = 0; i < o.parts.length; i++) {
-        if (hp[i] <= 0) continue;
+        if (hp[i] <= 0 || shot.pierced.includes(o.id + ':' + i)) continue;
         const p = o.parts[i], q = J.partPos(o, i, view.time, ob.ys);
         if (b.x + br < q.x || b.x - br > q.x + p.w || b.y + br < q.y || b.y - br > q.y + p.h) continue;
         if (ob.state === 'locked') { block(b, q.x, '🔒 Erst ab ' + J.AGES[o.age].name); return; }
-        const st = J.stats(s), dmg = st.dmg * (shot.crit ? J.P.crit : 1);
+        const dmg = shotDmg();
         hp[i] = Math.max(0, hp[i] - dmg);
         ob.hit[i] = 1;
         const [sx, sy] = toScreen(b.x, b.y);
@@ -268,9 +276,10 @@
             floatText(sx, sy - 66, o.name + ' zerstört! +' + J.fmtNum(g2) + ' Gold', '#ffd23f', 17);
             burst(sx, view.groundY - 10, '#8a7a6a', 24); view.shake = 0.5; sfx('up');
           }
-          b.vx *= 0.7; b.vy *= 0.7;
+          if (!pierce(o.id + ':' + i)) { b.vx *= 0.7; b.vy *= 0.7; }
           syncObstacles();
-        } else block(b, q.x, null);
+        } else if (pierce(o.id + ':' + i)) { b.vx *= 0.9; floatText(sx, sy - 44, 'Durchbohrt!', '#c9d4ff', 14); }
+        else block(b, q.x, null);
         return;
       }
     }
@@ -353,6 +362,7 @@
         t.hit = true; const [sx, sy] = toScreen(t.x, t.y); burst(sx, sy, '#ffffff', 14); floatText(sx, sy - 18, 'Treffer!', '#5ee07a', 16); sfx('star');
       });
       if (!s.won && b.x >= J.P.goal) shot.reachedGoal = true;
+      if (b.y <= 0 && b.vy < 0 && shot.blocked == null && !shot.caught) groundAmmo(b);
       if (b.y <= 0 && b.vy < 0) { b.y = 0; land(); }
     }
     // Abgas/Rauch/Funken je Zeitalter
@@ -369,6 +379,21 @@
     targetScale = Math.min(autoScale() / Math.max(1, zoom), fitScale(xm * 1.05, Math.max(shot.predApex * 1.15, b.y * 1.15)));
   }
 
+  // Sprengkugel explodiert am Boden und fliegt weiter, Hüpfkugel springt 3-mal
+  function groundAmmo(b) {
+    const [sx] = toScreen(b.x, 0), sy = view.groundY - 4;
+    if (shot.ammo === 'spreng' && !shot.boomed) {
+      shot.boomed = true; b.y = 1e-6; b.vy = shot.v0 * 0.55; b.vx = Math.max(Math.abs(b.vx), shot.v0 * 0.55);
+      for (let k = 0; k < 36; k++) { const an = Math.random() * Math.PI, sp = 120 + Math.random() * 260; view.parts.push({ x: sx, y: sy, vx: Math.cos(an) * sp, vy: -Math.sin(an) * sp, r: 2 + Math.random() * 3, life: 0.6 + Math.random() * 0.5, col: k % 3 ? '#ffb347' : '#fff3b0', spark: true }); }
+      for (let k = 0; k < 10; k++) view.parts.push({ x: sx + (Math.random() - 0.5) * 30, y: sy - Math.random() * 20, vx: (Math.random() - 0.5) * 60, vy: -30 - Math.random() * 50, r: 8 + Math.random() * 10, life: 1.3, col: 'rgba(70,60,55,0.55)', dust: true });
+      view.rings = view.rings || []; view.rings.push({ x: sx, y: sy, t: 0, col: '255,180,80' });
+      floatText(sx, sy - 60, 'BUMM! Weiter geht’s!', '#ffb347', 19); view.shake = Math.max(view.shake, 0.55); sfx('hit'); setTimeout(() => sfx('boost'), 80);
+    } else if (shot.ammo === 'huepf' && shot.bounces < 3) {
+      shot.bounces++; b.y = 1e-6; b.vy = Math.abs(b.vy) * 0.62; b.vx *= 0.88;
+      burst(sx, sy, '#ff8a5a', 8); floatText(sx, sy - 40, 'Hüpf ' + shot.bounces + '/3', '#ffb3aa', 14); sfx('tap');
+    }
+  }
+
   function land() {
     const b = view.ball;
     const d = shot.blocked != null ? shot.blocked : Math.max(0, b.x);
@@ -381,7 +406,7 @@
     if (e && e.type === 'bonusGround' && !e.got && Math.abs(d - e.at) <= e.w) {
       e.got = true; const g = 10 * J.shotGold(s, d); shot.bonus += g; floatText(lx, view.groundY - 90, 'Schatz! +' + J.fmtNum(g) + ' Gold', '#ffd23f', 17); sfx('perfect');
     }
-    const total = J.shotGold(s, d) + shot.starGold + shot.birdGold + shot.bonus;
+    const total = (J.shotGold(s, d) + shot.starGold + shot.birdGold + shot.bonus) * (shot.ammo === 'gold' ? 3 : 1);
     s.gold += total; s.shots++;
     const wasOpen = J.jumpUnlocked(s);
     const newRec = d > s.runRec;
@@ -423,17 +448,18 @@
   }
   // Treffer an einem Challenge-Turm (wie bei Hindernissen: zerstörte Teile lassen die Kugel weiterfliegen)
   function checkChalTower(b) {
+    if (shot.ammo === 'spreng') return;
     const o = chal.tower, br = 5 / view.scale;
     if (b.x < o.at - o.u * 1.5 || b.x > o.end + o.u * 2) return;
     for (let i = 0; i < o.parts.length; i++) {
-      if (chal.hp[i] <= 0) continue;
+      if (chal.hp[i] <= 0 || shot.pierced.includes('c:' + i)) continue;
       const p = o.parts[i], q = J.partPos(o, i, view.time, chal.ys);
       if (b.x + br < q.x || b.x - br > q.x + p.w || b.y + br < q.y || b.y - br > q.y + p.h) continue;
-      const dmg = J.stats(s).dmg * (shot.crit ? J.P.crit : 1);
+      const dmg = shotDmg();
       chal.hp[i] = Math.max(0, chal.hp[i] - dmg); chal.hit[i] = 1;
       const [sx, sy] = toScreen(b.x, b.y); burst(sx, sy, '#ffb347', 12); sfx('hit');
-      if (chal.hp[i] <= 0) { destroyFx(o, i, q); floatText(sx, sy - 30, 'Teil zerstört! ' + chal.hp.filter(h => h > 0).length + ' übrig', '#ffd23f', 15); b.vx *= 0.7; b.vy *= 0.7; }
-      else { floatText(sx, sy - 24, '−' + J.fmtNum(Math.ceil(dmg)), '#ff8a7a', 15); block(b, q.x, null); }
+      if (chal.hp[i] <= 0) { destroyFx(o, i, q); floatText(sx, sy - 30, (chal.train ? 'Ziel zerstört!' : 'Teil zerstört! ' + chal.hp.filter(h => h > 0).length + ' übrig'), '#ffd23f', 15); if (!pierce('c:' + i)) { b.vx *= 0.7; b.vy *= 0.7; } if (chal.train && chal.hp.every(h => h <= 0)) trainDone(); }
+      else { floatText(sx, sy - 24, '−' + J.fmtNum(Math.ceil(dmg)), '#ff8a7a', 15); if (!pierce('c:' + i)) block(b, q.x, null); }
       return;
     }
   }
@@ -456,6 +482,7 @@
     }
   }
 
+  function trainDone() { /* Trainingszentrum folgt */ }
   // ---------- Effekte ----------
   function floatText(x, y, text, col, size) { view.texts.push({ x, y, text, col, size, life: 1.6 }); }
   function burst(x, y, col, n) { for (let i = 0; i < n; i++) view.parts.push({ x, y, vx: (Math.random() - 0.5) * 220, vy: -Math.random() * 220, r: 2 + Math.random() * 2.5, life: 0.8 + Math.random() * 0.4, col }); }
@@ -560,6 +587,10 @@
     const wsP = [st.wsRange > 1 && 'Reichweite ' + pct(st.wsRange), st.wsDmg > 1 && 'Schaden ' + pct(st.wsDmg), st.wsGold > 1 && 'Gold ' + pct(st.wsGold)].filter(Boolean);
     if (chP.length) rows.push(`<span title="Boni aus geschafften Challenges">🏆 ${chP.join(' · ')}</span>`);
     if (wsP.length) rows.push(`<span title="Boni aus der Zeitwerkstatt">💠 ${wsP.join(' · ')}</span>`);
+    const shP = [st.shDmg > 1 && 'Schaden ' + pct(st.shDmg), st.shRange > 1 && 'Reichweite ' + pct(st.shRange), st.shGold > 1 && 'Gold ' + pct(st.shGold)].filter(Boolean);
+    if (shP.length) rows.push(`<span title="Boni aus Schreinen (dieser Lauf)">⛩️ ${shP.join(' · ')}</span>`);
+    const trP = [st.trDmg > 1 && 'Schaden ' + pct(st.trDmg), st.trRange > 1 && 'Reichweite ' + pct(st.trRange), st.trGold > 1 && 'Gold ' + pct(st.trGold)].filter(Boolean);
+    if (trP.length) rows.push(`<span title="Boni aus dem Trainingszentrum">🏋️ ${trP.join(' · ')}</span>`);
     const bh = rows.join(''); if (bh !== renderHud.bh) { renderHud.bh = bh; $('#boni').innerHTML = bh; view.boniN = rows.length; }
   }
 
@@ -617,8 +648,11 @@
     const ch = [], ws = [];
     if (st.chDmg > 1) ch.push(fx(st.chDmg) + ' Schaden'); if (st.chGold > 1) ch.push(fx(st.chGold) + ' Gold'); if (st.chRange > 1) ch.push(fx(st.chRange) + ' Reichweite');
     if (st.wsRange > 1) ws.push(fx(st.wsRange) + ' Reichweite'); if (st.wsDmg > 1) ws.push(fx(st.wsDmg) + ' Schaden'); if (st.wsGold > 1) ws.push(fx(st.wsGold) + ' Gold');
-    if (!ch.length && !ws.length) return '';
-    return `<div class="bonus-line">${ch.length ? '🏆 Challenges: ' + ch.join(', ') : ''}${ch.length && ws.length ? '<br>' : ''}${ws.length ? '💠 Zeitwerkstatt: ' + ws.join(', ') : ''}</div>`;
+    const sh = [], tr = [];
+    if (st.shDmg > 1) sh.push(fx(st.shDmg) + ' Schaden'); if (st.shRange > 1) sh.push(fx(st.shRange) + ' Reichweite'); if (st.shGold > 1) sh.push(fx(st.shGold) + ' Gold');
+    if (st.trDmg > 1) tr.push(fx(st.trDmg) + ' Schaden'); if (st.trRange > 1) tr.push(fx(st.trRange) + ' Reichweite'); if (st.trGold > 1) tr.push(fx(st.trGold) + ' Gold');
+    const rows = [ch.length && '🏆 Challenges: ' + ch.join(', '), ws.length && '💠 Zeitwerkstatt: ' + ws.join(', '), sh.length && '⛩️ Schreine: ' + sh.join(', '), tr.length && '🏋️ Training: ' + tr.join(', ')].filter(Boolean);
+    return rows.length ? `<div class="bonus-line">${rows.join('<br>')}</div>` : '';
   }
 
   // ---------- Zeitsprung & Zeitwerkstatt ----------
@@ -777,8 +811,41 @@
 
   function renderAll() {
     renderHud();
-    if (tab === 'cannon') renderCannon(); else if (tab === 'chal') renderChal(); else if (tab === 'jump') renderJump(); else renderScores();
+    if (tab === 'cannon') renderCannon(); else if (tab === 'chal') renderChal(); else if (tab === 'jump') renderJump(); else if (tab === 'shop') renderShop(); else renderScores();
+    renderAmmoBar();
   }
+
+  // ---------- Shop: Munition und Schreine ----------
+  const pctTxt = v => '+' + (Math.round(v * 1000) / 10).toString().replace('.', ',') + ' %';
+  function renderShop() {
+    let h = '<h4 class="sub" style="margin-top:2px">Munition</h4><div class="muted small" style="margin:-2px 2px 8px">Lade sie unten im Spielfeld in die Kanone. Munition gilt für diesen Lauf.</div>';
+    J.AMMO.filter(a => a.price).forEach(a => {
+      const c = J.ammoCost(s, a.id), n = s.ammo[a.id] || 0;
+      h += `<div class="card upg"><div class="ammo-ic">${a.icon}</div><div class="info"><div class="name">${esc(a.name)} <span class="muted">· Vorrat ${n}</span></div><div class="muted">${esc(a.desc)}</div></div>
+        <button class="btn" data-ammo="${a.id}" ${s.gold >= c ? '' : 'disabled'}>${J.AMMO_PACK}× ${COIN()} ${J.fmtNum(c)}</button></div>`;
+    });
+    const sum = J.shrineSum(s), own = s.shrines.length;
+    h += `<h4 class="sub">Schreine</h4><div class="card shrine-sum"><b>⛩️ ${own} ${own === 1 ? 'Schrein' : 'Schreine'} aufgestellt</b><div class="muted">${own ? J.SHRINE.filter(d => sum[d.k] > 0).map(d => d.icon + ' ' + pctTxt(sum[d.k]) + ' ' + d.txt.replace('% ', '')).join(' · ') : 'Schreine verbessern deine Kanone dauerhaft für diesen Lauf. Jeder weitere wird teurer.'}</div></div>`;
+    J.shrineOffers(s).forEach((o, i) => {
+      const d = J.SHRINE.find(x => x.k === o.k), c = J.shrineCost(s, o);
+      h += `<div class="card upg shrine"><canvas class="shrine-cv" data-shrinecv="${o.k}" width="88" height="88"></canvas><div class="info"><div class="name">${esc(d.name)}</div><div class="shrine-eff">${d.icon} ${esc(J.shrineText(o))}</div></div>
+        <button class="btn" data-shrine="${i}" ${s.gold >= c ? '' : 'disabled'}>${COIN()} ${J.fmtNum(c)}</button></div>`;
+    });
+    h += `<button class="btn sec" data-reroll style="width:100%" ${s.gold >= J.rerollCost(s) ? '' : 'disabled'}>🎲 Neue Schreine anbieten · ${COIN()} ${J.fmtNum(J.rerollCost(s))}</button>`;
+    $('#tab-shop').innerHTML = h;
+    document.querySelectorAll('canvas[data-shrinecv]').forEach(cv => R.drawShrine(cv, cv.dataset.shrinecv, s.age));
+  }
+  // Munitionsauswahl im Spielfeld (nur sichtbar, wenn Spezialmunition im Vorrat ist)
+  function renderAmmoBar() {
+    const el = $('#ammoBar'), have = J.AMMO.filter(a => !a.price || (s.ammo[a.id] || 0) > 0);
+    const h = have.length > 1 ? have.map(a => `<button class="ammo-chip ${s.ammoSel === a.id ? 'on' : ''}" data-sel="${a.id}" title="${esc(a.name)}: ${esc(a.desc)}">${a.icon} <span>${a.price ? s.ammo[a.id] : '∞'}</span></button>`).join('') : '';
+    if (h !== renderAmmoBar.h) { renderAmmoBar.h = h; el.innerHTML = h; el.hidden = !h; if (stageView === 'cannon') layout(); }
+  }
+  $('#ammoBar').addEventListener('click', e => {
+    const b = e.target.closest('[data-sel]'); if (!b) return;
+    s.ammoSel = b.dataset.sel; sfx('click'); renderAmmoBar();
+    const a = J.AMMO.find(x => x.id === s.ammoSel); if (a.price) toast(a.icon + ' <b>' + esc(a.name) + '</b> geladen: ' + esc(a.desc));
+  });
 
   // Leichte Aktualisierung ohne Neuaufbau
   let sig = '';
@@ -787,12 +854,14 @@
     if (stageView === 'res') updateResGrid();
     let nsig = tab + '|' + phase + (chal ? 'c' : '');
     if (tab === 'cannon') nsig += J.upgList(s).map(u => J.canAfford(s, u.cost) ? 1 : 0).join('') + J.canAgeUp(s) + Object.values(s.mats).join(',');
+    if (tab === 'shop') nsig += J.AMMO.map(a => s.gold >= J.ammoCost(s, a.id) ? 1 : 0).join('') + J.shrineOffers(s).map(o => s.gold >= J.shrineCost(s, o) ? 1 : 0).join('') + s.shrines.length;
     if (tab === 'jump') nsig += s.meta.sp + '|' + J.jumpPreview(s).n + '|' + Math.round(s.runRec * 100);
     if (nsig !== sig && !(tab === 'jump' && document.querySelector('.btn.jump.hold'))) {
       sig = nsig;
       if (tab === 'cannon') renderCannon();
       else if (tab === 'chal') renderChal();
       else if (tab === 'jump') renderJump();
+      else if (tab === 'shop') renderShop();
     }
   }
 
@@ -887,7 +956,7 @@
       </div>` : ''}
       <h3 style="margin:14px 0 4px">Spielstand</h3>
       <div class="row"><button class="btn sec" data-menu="newplayer">Neuer Spieler</button><button class="btn sec" data-menu="reset" style="background:#8f2f25">Neu beginnen</button></div>
-      <p class="muted" style="margin-top:14px">Epochenschuss${DEV ? ' · Entwickler-Version' : ''} · Spielstand liegt nur auf diesem Gerät.</p>
+      <p class="muted" style="margin-top:14px">Epochenschuss · Version ${VERSION}${DEV ? ' · Entwickler-Version' : ''} · Spielstand liegt nur auf diesem Gerät.</p>
       <button class="btn" data-close style="width:100%;margin-top:6px">Schließen</button>`);
   }
 
@@ -954,6 +1023,9 @@
       if (u) { s.st.ups++; sfx('buy'); toast('Gekauft: <b>' + esc(u.name) + '</b>'); computePreview(); save(); sig = ''; renderAll(); }
     } else if (bt.hasAttribute('data-ageup')) doAgeUp();
     else if (bt.dataset.chal) startChallenge(bt.dataset.chal);
+    else if (bt.dataset.ammo) { if (J.buyAmmo(s, bt.dataset.ammo)) { const a = J.AMMO.find(x => x.id === bt.dataset.ammo); s.ammoSel = a.id; sfx('buy'); toast(a.icon + ' ' + J.AMMO_PACK + '× ' + esc(a.name) + ' gekauft und geladen'); save(); sig = ''; renderAll(); } }
+    else if (bt.dataset.shrine) { const o = J.buyShrine(s, +bt.dataset.shrine); if (o) { sfx('up'); toast('⛩️ Schrein aufgestellt: <b>' + esc(J.shrineText(o)) + '</b>'); computePreview(); save(); sig = ''; renderAll(); } }
+    else if (bt.hasAttribute('data-reroll')) { if (J.rerollShrines(s)) { sfx('click'); save(); sig = ''; renderAll(); } }
     else if (bt.dataset.ws) {
       if (J.wsBuy(s, bt.dataset.ws)) { const w = J.WORKSHOP.find(x => x.id === bt.dataset.ws); sfx('buy'); toast('💠 ' + esc(w.name) + ' ' + ROMAN[s.meta.upg[w.id]] ); computePreview(); spawnStars(); save(); sig = ''; renderAll(); updateResGrid(true); }
     }

@@ -18,7 +18,7 @@
     steps: 3,                                     // Stufen je Upgrade-Linie und Zeitalter
     goal: 1000, offlineCap: 8 * 3600,
     spK: 10, spExp: 0.4, spMin: 1, spWin: 25, wsG: 1.5,
-    wsAder: 0.4, wsHaende: 0.4, wsSchlag: 0.25, wsLauf: 0.12, wsKugel: 0.25, wsPlaene: 0.07, wsLinse: 0.1, wsVogel: 0.15, // Zeitwerkstatt je Stufe // Zeitsprung: Splitter = spK × Rekord_km^spExp, ab spMin km; Kosten-Wachstum Zeitwerkstatt
+    wsAder: 0.4, wsHaende: 0.4, wsSchlag: 0.25, wsLauf: 0.12, wsKugel: 0.25, wsPlaene: 0.07, wsLinse: 0.1, wsVogel: 0.15, wsKrit: 0.2, wsSegen: 0.1, wsMeister: 0.1, wsTrainer: 0.25, wsDaumen: 0.25, // Zeitwerkstatt je Stufe // Zeitsprung: Splitter = spK × Rekord_km^spExp, ab spMin km; Kosten-Wachstum Zeitwerkstatt
   }, root.JS_P || {});
 
   const LINES = [
@@ -157,7 +157,7 @@
   }
   const BONUS_NAME = { dmg: 'Schaden', range: 'Reichweite', gold: 'Gold' };
   function bonusText(b) { return Object.keys(b).map(k => '+' + Math.round(b[k] * 100) + ' % ' + BONUS_NAME[k]).join(', '); }
-  function chBonus(s, key) { return CHALLENGES.reduce((sum, c) => sum + (s.ch[c.id] && c.bonus[key] ? c.bonus[key] : 0), 0); }
+  function chBonus(s, key) { return (1 + P.wsMeister * W(s, 'meister')) * CHALLENGES.reduce((sum, c) => sum + (s.ch[c.id] && c.bonus[key] ? c.bonus[key] : 0), 0); }
 
   // ---------- Zeitsprung & Zeitwerkstatt (permanent) ----------
   // Kosten je Stufe = base × wsG^Stufe. Bewusst andere Werte als die Challenges (die geben Schaden/Gold als feste Boni).
@@ -179,7 +179,7 @@
   ];
   function pc(x) { return Math.round(x * 100); }
   function startGold(l) { return l ? Math.round(30 * Math.pow(3, l - 1)) : 0; }
-  function newMeta() { return { sp: 0, earned: 0, jumps: 0, upg: {}, winBonus: false, bestRun: 0, skins: {} }; }
+  function newMeta() { return { sp: 0, earned: 0, jumps: 0, upg: {}, winBonus: false, bestRun: 0, skins: {}, train: { n: 0, dmg: 0, range: 0, gold: 0 } }; }
   const W = (s, id) => (s && s.meta && s.meta.upg[id]) || 0;
   function wsCost(s, w) { return Math.round(w.base * Math.pow(P.wsG, W(s, w.id))); }
   function wsList(s) { return WORKSHOP.map(w => { const lv = W(s, w.id); return { w, lv, maxed: lv >= w.max, cost: lv >= w.max ? 0 : wsCost(s, w), now: lv ? w.eff(lv) : '–', next: lv < w.max ? w.eff(lv + 1) : null }; }); }
@@ -217,6 +217,62 @@
     return { s: n, got: pv.n, km: pv.km };
   }
 
+  // ---------- Munition (Gold, verbraucht sich, gilt für diesen Lauf) ----------
+  // Preis je Stück in „Schüssen“: Gold, das ein normaler Schuss auf volle Reichweite zu Beginn des Zeitalters bringt
+  const AMMO = [
+    { id: 'kugel',  icon: '⚫', name: 'Kugel',        price: 0,   desc: 'Die normale Munition. Unbegrenzt.' },
+    { id: 'pfeil',  icon: '🏹', name: 'Pfeil',        price: 1.2, desc: '×3 Schaden an Hindernissen, fliegt aber 15 % weniger weit.' },
+    { id: 'spreng', icon: '💣', name: 'Sprengkugel',  price: 1.0, desc: 'Explodiert am Boden und schleudert sich weit nach vorn. Fliegt ohne Schaden durch Hindernisse.' },
+    { id: 'bohrer', icon: '🔩', name: 'Bohrkugel',    price: 1.6, desc: 'Durchbohrt bis zu 3 Teile und macht an jedem vollen Schaden.' },
+    { id: 'huepf',  icon: '🏀', name: 'Hüpfkugel',    price: 0.6, desc: 'Springt nach der Landung noch 3-mal weiter.' },
+    { id: 'gold',   icon: '💰', name: 'Goldkugel',    price: 1.3, desc: 'Dreifaches Gold für diesen Schuss.' },
+  ];
+  const AMMO_PACK = 5;
+  const goldUnit = s => Math.max(1, Math.round(P.g0 * Math.pow(ageRange(s.age) * 10, P.gExp) * Math.pow(P.gluckF, s.lv.gluck)));
+  const ammoCost = (s, id) => { const a = AMMO.find(x => x.id === id); return Math.max(5, Math.round(a.price * AMMO_PACK * goldUnit(s) * (1 - 0.1 * W(s, 'vorrat')))); };
+  function buyAmmo(s, id) {
+    const a = AMMO.find(x => x.id === id); if (!a || !a.price) return false;
+    const c = ammoCost(s, id); if (s.gold < c) return false;
+    s.gold -= c; s.ammo[id] = (s.ammo[id] || 0) + AMMO_PACK; return true;
+  }
+  // Nimmt eine Munition aus dem Vorrat (Standardkugel, wenn nichts mehr da ist)
+  function takeAmmo(s) {
+    const id = s.ammoSel || 'kugel';
+    if (id === 'kugel' || !(s.ammo[id] > 0)) { s.ammoSel = 'kugel'; return 'kugel'; }
+    s.ammo[id]--; if (s.ammo[id] <= 0) s.ammoSel = 'kugel';
+    return id;
+  }
+
+  // ---------- Schreine (Gold, dauerhafte Prozent-Boni für diesen Lauf) ----------
+  const SHRINE = [
+    { k: 'dmg',   icon: '🔥', name: 'Schrein der Kraft',    lo: 5, hi: 15, txt: '% Schaden' },
+    { k: 'range', icon: '🌬️', name: 'Schrein des Windes',   lo: 3, hi: 10, txt: '% Reichweite' },
+    { k: 'gold',  icon: '💰', name: 'Schrein des Reichtums', lo: 6, hi: 15, txt: '% Gold' },
+    { k: 'work',  icon: '⚒️', name: 'Schrein des Fleißes',  lo: 8, hi: 20, txt: '% Arbeitstempo' },
+    { k: 'crit',  icon: '⚡', name: 'Schrein des Blitzes',  lo: 10, hi: 25, txt: '% kritischer Schaden' },
+  ];
+  function shrineSum(s) {
+    const o = { dmg: 0, range: 0, gold: 0, work: 0, crit: 0 }, f = 1 + P.wsSegen * W(s, 'segen');
+    (s.shrines || []).forEach(x => { o[x.k] += x.v / 100 * f; });
+    return o;
+  }
+  function rollShrine() { const d = SHRINE[Math.floor(Math.random() * SHRINE.length)], v = d.lo + Math.floor(Math.random() * (d.hi - d.lo + 1)); return { k: d.k, v }; }
+  function shrineOffers(s) { if (!s.shrineOffer || s.shrineOffer.length !== 3) s.shrineOffer = [rollShrine(), rollShrine(), rollShrine()]; return s.shrineOffer; }
+  // Kosten wachsen mit jedem gekauften Schrein und mit der Stärke des Angebots
+  const shrineCost = (s, o) => Math.round(goldUnit(s) * 6 * Math.pow(1.5, (s.shrines || []).length) * (o ? 0.6 + 0.8 * (o.v - SHRINE.find(d => d.k === o.k).lo) / (SHRINE.find(d => d.k === o.k).hi - SHRINE.find(d => d.k === o.k).lo + 1e-9) : 1));
+  function buyShrine(s, i) {
+    const offers = shrineOffers(s), o = offers[i]; if (!o) return null;
+    const c = shrineCost(s, o); if (s.gold < c) return null;
+    s.gold -= c; s.shrines.push(o); offers[i] = rollShrine(); return o;
+  }
+  const rerollCost = s => Math.round(goldUnit(s) * 1.5);
+  function rerollShrines(s) { const c = rerollCost(s); if (s.gold < c) return false; s.gold -= c; s.shrineOffer = null; shrineOffers(s); return true; }
+  const shrineText = o => { const d = SHRINE.find(x => x.k === o.k); return '+' + o.v + ' ' + d.txt; };
+
+  // ---------- Trainingszentrum (dauerhaft): jedes zerstörte Trainingsziel gibt zufällig +1 % Schaden, Reichweite oder Gold ----------
+  function trainBonus(s) { const t = (s.meta && s.meta.train) || { dmg: 0, range: 0, gold: 0 }, f = 1 + P.wsTrainer * W(s, 'trainer'); return { dmg: t.dmg / 100 * f, range: t.range / 100 * f, gold: t.gold / 100 * f }; }
+  function trainReward(s) { const k = ['dmg', 'range', 'gold'][Math.floor(Math.random() * 3)]; s.meta.train[k] += 1; s.meta.train.n++; return k; }
+
   // ---------- Zustand ----------
   function newState(meta) {
     const s = {
@@ -224,9 +280,11 @@
       lv: { kraft: 0, wucht: 0, ziel: 0, gluck: 0 },   // Stufen gesamt
       cur: { kraft: 0, wucht: 0, ziel: 0, gluck: 0 },  // Stufen im aktuellen Zeitalter
       mats: {}, res: [], oh: OBS.map(o => o.parts.map(p => p.hp)), ch: {}, t: Date.now(),
+      ammo: {}, ammoSel: 'kugel', shrines: [], shrineOffer: null,   // Munition und Schreine (Gold, gelten für diesen Lauf)
     };
     MATS.forEach(m => { s.mats[m.id] = 0; s.res.push({ tool: 1 + W(s, 'kiste'), wk: 0, p: 0 }); });
     s.gold = startGold(W(s, 'kapital'));
+    AMMO.forEach(a => { if (a.price) s.ammo[a.id] = W(s, 'vorrat') * 2; });
     return s;
   }
   // Ältere Spielstände ohne Zeitsprung-Daten ergänzen
@@ -234,20 +292,25 @@
     if (!s.meta) s.meta = newMeta();
     if (!s.meta.skins) s.meta.skins = {};
     if (s.runRec == null) s.runRec = s.record || 0;
+    if (!s.ammo) { s.ammo = {}; s.ammoSel = 'kugel'; }
+    if (!s.shrines) s.shrines = [];
+    if (!s.meta.train) s.meta.train = { n: 0, dmg: 0, range: 0, gold: 0 };
     return s;
   }
 
   function stats(s) {
-    const lv = s.lv;
+    const lv = s.lv, sh = shrineSum(s), tr = trainBonus(s);
     return {
-      range: P.r0 * Math.pow(P.kraftF, lv.kraft) * Math.pow(P.ageR, s.age) * (1 + chBonus(s, 'range')) * (1 + P.wsLauf * W(s, 'lauf')),
-      dmg: P.d0 * Math.pow(P.wuchtF, lv.wucht) * Math.pow(P.ageD, s.age) * (1 + chBonus(s, 'dmg')) * (1 + P.wsKugel * W(s, 'kugel')),
+      range: P.r0 * Math.pow(P.kraftF, lv.kraft) * Math.pow(P.ageR, s.age) * (1 + chBonus(s, 'range')) * (1 + P.wsLauf * W(s, 'lauf')) * (1 + sh.range) * (1 + tr.range),
+      dmg: P.d0 * Math.pow(P.wuchtF, lv.wucht) * Math.pow(P.ageD, s.age) * (1 + chBonus(s, 'dmg')) * (1 + P.wsKugel * W(s, 'kugel')) * (1 + sh.dmg) * (1 + tr.dmg),
+      crit: P.crit + P.wsKrit * W(s, 'krit') + sh.crit,
       // Zielhilfe zählt nur im aktuellen Zeitalter: grüne Zone und Vorschau starten jedes Zeitalter klein
       zone: 0.10 + 0.06 * s.cur.ziel + 0.02 * W(s, 'hand'), // Anteil der grünen Zone an der Leiste
       preview: 0.35 + 0.1 * s.cur.ziel + 0.05 * W(s, 'blick'),                  // Anteil der Flugbahn, der vorher gezeigt wird
       chalPreview: 0.3,                                   // in Challenges fest und kürzer
       barSpeed: 0.9,
-      goldMult: Math.pow(P.gluckF, lv.gluck) * (1 + chBonus(s, 'gold')) * (1 + P.wsAder * W(s, 'ader')),
+      goldMult: Math.pow(P.gluckF, lv.gluck) * (1 + chBonus(s, 'gold')) * (1 + P.wsAder * W(s, 'ader')) * (1 + sh.gold) * (1 + tr.gold),
+      shDmg: 1 + sh.dmg, shRange: 1 + sh.range, shGold: 1 + sh.gold, shCrit: sh.crit, trDmg: 1 + tr.dmg, trRange: 1 + tr.range, trGold: 1 + tr.gold,
       stars: 3 + Math.floor(lv.gluck / 4) + W(s, 'stern'),
       bird: 1 + P.wsVogel * W(s, 'vogel'),             // Stärke des Vogel-Schubs
       // getrennt ausgewiesen: Challenge-Boni und Zeitwerkstatt
@@ -340,7 +403,7 @@
     };
   }
   const workers = (s, i) => s.res[i].wk + (s.age >= MATS[i].age ? W(s, 'stamm') : 0);
-  const workSpeed = s => 1 + P.wsHaende * W(s, 'haende');
+  const workSpeed = s => (1 + P.wsHaende * W(s, 'haende')) * (1 + shrineSum(s).work);
   function addProgress(s, i, amount) {
     const r = s.res[i];
     r.p += amount;
@@ -398,6 +461,6 @@
     return nf(n / 1e9, 2) + ' Mrd.';
   }
 
-  root.JS = { WORKSHOP, wsList, wsBuy, wsCost, splitterFor, jumpPreview, jumpUnlocked, rebirth, migrate, newMeta, startGold, workers, P, LINES, AGES, MATS, OBS, CHALLENGES, newState, stats, quality, shotGold, obsState, obsDone, nextBlocking, ageObstaclesDone,
+  root.JS = { AMMO, AMMO_PACK, ammoCost, buyAmmo, takeAmmo, goldUnit, SHRINE, shrineSum, shrineOffers, shrineCost, buyShrine, rerollCost, rerollShrines, shrineText, trainBonus, trainReward, WORKSHOP, wsList, wsBuy, wsCost, splitterFor, jumpPreview, jumpUnlocked, rebirth, migrate, newMeta, startGold, workers, P, LINES, AGES, MATS, OBS, CHALLENGES, newState, stats, quality, shotGold, obsState, obsDone, nextBlocking, ageObstaclesDone,
     upgCost, upgList, canAfford, buy, tapPower, upgradesDone, canAgeUp, ageUp, resInfo, tap, resAction, tickRes, canTrade, tradeRate, trade, neededMats, offline, bonusText, chBonus, chalFor, ageRange, partLevel, partPos, fmtKm, fmtNum };
 })(typeof window !== 'undefined' ? window : globalThis);
