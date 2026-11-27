@@ -8,10 +8,11 @@ Mobile-first, läuft aber auch am Desktop (Touch, Maus und Tastatur). Statische 
 1. Der Schütze steht fest an der Kanone. **Laden** tippen startet die Timing-Leiste.
 2. Winkel (10–80°) und **Schussstärke** (20–100 %) einstellen: Regler, Ziehen im Spielfeld oder Pfeiltasten. Die Vorschau zeigt nur das Anfangsstück der Bahn (ca. 35 %, mit Zielhilfe bis 65 %). Die Spur des letzten Schusses blendet nach der Landung aus.
 3. Die Timing-Leiste läuft hin und her. Grün = volle Kraft, helle Mitte = „Perfekt! Kritisch“ (+50 % Schaden). Gelb/Rot = schwächerer Schuss.
-4. Unterwegs: **Sterne** (Gold), mehrere **Flieger** passend zum Zeitalter (kleiner Stups, wenig Schub) und manchmal ein **Ereignis**.
+4. Unterwegs: **Sterne** (Gold), **ein großer Vogel** passend zum Zeitalter (leuchtet, gibt beim Treffen kräftigen „MEGA-SCHUB!“) und manchmal ein **Ereignis**.
 5. Auslösen im grünen Bereich: kurzer Effekt (Ringe, Strahlen, „IM GRÜNEN!“ bzw. „★ PERFEKT! ★“). Der Schütze zieht je nach Zeitalter an Schleuder/Zugleine, drückt die Lunte oder den Hebel bzw. den Knopf am Pult.
 6. Das Geschoss ändert sich je Zeitalter: Stein, Bronzekugel, Eisenbolzen, Granitbrocken, brennender Fels, Kanonenkugel, Stahlgranate, Rakete, Plasma-Rakete (mit Rauch/Feuer/Plasma-Spur).
-7. Zoomen per +/−, Mausrad oder zwei Fingern. Spätere Hindernisse sieht man nur als Umriss.
+7. **Munition** wählt man in der Leiste über dem Laden-Knopf (Kauf im Shop, siehe unten).
+8. Zoomen per +/−, Mausrad oder zwei Fingern. Spätere Hindernisse sieht man nur als Umriss.
 
 ## Hindernisse
 
@@ -23,7 +24,7 @@ Mobile-first, läuft aber auch am Desktop (Touch, Maus und Tastatur). Statische 
 
 ## Fortschritt
 
-- **Kanone = Zeitalter.** Pro Zeitalter 12 Upgrades (4 Linien × 3 Stufen). Aufsteigen geht erst, wenn alle Upgrades gekauft **und** alle Hindernisse des Zeitalters zerstört sind.
+- **Kanone = Zeitalter.** Pro Zeitalter 12 Upgrades (4 Linien × 3 Stufen). Aufsteigen geht, sobald **alle Hindernisse des Zeitalters zerstört** sind. Upgrades helfen dabei, sind aber freiwillig (Nico, 2026-11-27).
 - Jedes Upgrade ändert die Kanone sichtbar: **Schusskraft** = längeres, dickeres Rohr aus edlerem Material (Stufe 3 golden), **Wucht** = andere Munition (Stapel neben der Kanone, Geschoss wird größer), Kimme/Zielfernrohr/Laser (Zielhilfe), Wimpel/Stern/Kleeblatt (Glück). Alle 4 Upgrades gibt es ein **neues Gestell** (Podest, Dreibein, goldene Drehscheibe).
 - **Schütze:** je Zeitalter 3 Skins (Mann, Frau, Kind) mit eigener Kleidung. Auswahl im Aufstiegs-Fenster und jederzeit im Kanonen-Tab; bleibt über Zeitsprünge erhalten.
 - **Hintergrund und Bahn je Zeitalter:** Vulkan/Steinplatten, Berge/Lehm, Tannen/Bohlenweg, Tempel/Marmor, Burg/Pflaster, Kuppelstadt/Ziegel, Fabriken/Eisenplatten mit Schienen, Hochhäuser/Asphalt, Weltraum-Neonstadt/leuchtendes Plasma-Metall.
@@ -34,7 +35,7 @@ Mobile-first, läuft aber auch am Desktop (Touch, Maus und Tastatur). Statische 
 
 ## Ressourcen
 
-Eigene Ansicht im Spielfenster (Umschalter **Kanone / Ressourcen** oben). Alle 10 Ressourcen gleichzeitig als kleine Kacheln mit animierter Abbaustelle (Wald, Steinbruch, Schmelzofen …): Antippen lässt den Schützen eine passende Bewegung machen (Holz hacken, Stein pickeln, Blasebalg drücken, Lore schieben, Kurbel drehen, Hammer auf Amboss, Mörser stampfen, Hebel ziehen, am Pult tippen, Energie bündeln), Splitter fliegen, fertige Ressourcen fliegen ins Lager. Klicken wird je Zeitalter schwächer (Steinzeit 10 Tipps = 1 Füllung, danach ×0,7 pro Zeitalter), später tragen Arbeiter und Werkzeug. Je Kachel 👷 **Arbeiter** (Gold; hauen, tragen, laufen zurück, auch offline max. 8 h) und 🔨 **Werkzeug** (mehr pro Füllung). Noch nicht erreichte Ressourcen sind ausgegraut. Nicht mehr benötigte Ressourcen (alles außer den beiden des aktuellen Zeitalters) lassen sich per **⇄ Tauschen** in eine der beiden aktuell gebrauchten umtauschen; Kurs 2 × 1,85^(Zeitalter-Abstand). Münze und Ressourcen sind eigene Grafiken statt neuerer Emoji, die ältere Systeme nicht anzeigen.
+Eigene Ansicht im Spielfenster (Umschalter **🎯 Kanone / ⛏️ Rohstoffe / 🏋️ Training / 🌾 Farm** oben). Alle 10 Ressourcen gleichzeitig als kleine Kacheln mit animierter Abbaustelle (Wald, Steinbruch, Schmelzofen …): Antippen lässt den Schützen eine deutliche, eigene Bewegung machen (Holz sägen, Stein heben und werfen, Blasebalg drücken, Lore schieben, Seilkurbel drehen, Stahl abschrecken, Pulver sieben, Hebel ziehen, am Pult tippen, Energie lenken), Splitter fliegen, fertige Ressourcen fliegen ins Lager. Klicken wird je Zeitalter schwächer (Steinzeit 10 Tipps = 1 Füllung, danach ×0,7 pro Zeitalter), später tragen Arbeiter und Werkzeug. Je Kachel 👷 **Arbeiter** (Gold; hauen, tragen, laufen zurück, auch offline max. 8 h) und 🔨 **Werkzeug** (mehr pro Füllung). Noch nicht erreichte Ressourcen sind ausgegraut. Nicht mehr benötigte Ressourcen (alles außer den beiden des aktuellen Zeitalters) lassen sich per **⇄ Tauschen** in eine der beiden aktuell gebrauchten umtauschen; Kurs 2 × 1,85^(Zeitalter-Abstand). Münze und Ressourcen sind eigene Grafiken statt neuerer Emoji, die ältere Systeme nicht anzeigen.
 
 ## Ereignisse (halten 3–5 Schüsse an)
 
@@ -64,13 +65,34 @@ Jederzeit spielbar, jede mit Mindest-Zeitalter und einem **dauerhaften Bonus**. 
 | Bunkerknacker | Moderne | Landen auf dem Bunker, 3 Versuche | +20 % Gold |
 | Satellitenjagd | Zukunft | 4 Satelliten, 6 Schüsse | +25 % Schaden |
 
+Höhen-Challenges (Ziele am Boden, auf Podesten und auf Aufzügen, die hoch und runter fahren): Höhenparcours (Steinzeit, +10 % Gold), Stufenziele (Eisenzeit, +10 % Schaden), Aufzugturm (Mittelalter, +15 % Schaden), Dächerjagd (Moderne, +20 % Gold).
+
+## Shop (Gold): Munition und Schreine
+
+Tab **Shop** im Werkbank-Panel. Preise wachsen mit dem Zeitalter (Basis = Gold eines vollen Schusses).
+
+- **Munition** in 5er-Packs, Auswahl in der Leiste über dem Laden-Knopf (normale Kugel unbegrenzt): 🏹 Pfeil (×3 Schaden an Hindernissen, 15 % weniger weit), 💣 Sprengkugel (fliegt ohne Schaden durch Hindernisse, explodiert am Boden und schleudert weit nach vorn), 🔩 Bohrkugel (durchbohrt bis zu 3 Teile), 🏀 Hüpfkugel (springt 3-mal weiter), 💰 Goldkugel (dreifaches Gold).
+- **Schreine:** 3 zufällige Angebote (Schaden, Reichweite, Gold, Arbeitstempo, kritischer Schaden; je nach Stärke teurer), neu würfeln kostet Gold. Jeder Schrein macht den nächsten teurer.
+- Munition und Schreine gehen beim Zeitsprung verloren.
+
+## Training
+
+Eigene Ansicht: Zielscheiben und Puppen auf dem Übungsplatz abschießen. Jedes zerstörte Ziel gibt zufällig **+1 % Schaden, Reichweite oder Gold**, dauerhaft (bleibt über Zeitsprünge). Die Summe steht in den Bonus-Zeilen (🏋️).
+
+## Farm
+
+Zweite Welt, umschaltbar oben. Per Hand **säen, gießen, ernten** (Beet antippen), Ernte am Marktstand **verkaufen** (viel Gold). Kaufen: Saatgut (5er-Packs), neue Beete (3 bis 12), neue Sorten (Weizen, Mais, Kürbis, Sonnenblume, Goldähre; länger wachsend, aber lohnender) und Bots (Säe-, Gieß-, Ernte-, Händler-Bot). Pflanzen wachsen auch offline, Bots arbeiten nur bei offenem Spiel. Die Farm gehört zum Lauf und ist nach einem Zeitsprung weg.
+
 ## Zeitsprung (Rebirth)
+
+Sobald ein Zeitsprung möglich ist, reißt ein Zeitriss mit Portal im Himmel auf. Der Zeitsprung selbst ist eine Raketenshow: Der Schütze läuft zur Rakete, steigt ein, Countdown, und die Rakete verschwindet als Punkt im Himmel (antippen überspringt).
+
 
 Ab einem Rekord von **1 km** im aktuellen Lauf erscheint der Bereich **Zeitsprung** (Tab im Werkbank-Panel, 💠-Zähler oben). Ein Zeitsprung (Knopf 1 Sekunde gedrückt halten) schickt dich zurück in die Steinzeit und bringt **Zeitsplitter**: `10 × Rekord_km^0,4` (1 km = 10, 10 km = 25, 100 km = 63, 1.000 km = 158), beim ersten Lauf bis 1.000 km +25 Bonus.
 
-- **Verloren:** Gold, Ressourcen, Zeitalter, Kanonen-Upgrades, Arbeiter, Werkzeug, Hindernis-Schäden.
-- **Bleibt:** Zeitsplitter, Zeitwerkstatt, Challenge-Boni, Bestwerte und Statistik (Allzeit-Rekord im Fortschrittsbalken, 🏁 zeigt den Rekord des aktuellen Laufs).
-- **Zeitwerkstatt** (dauerhaft, Kosten = Basis × 1,5^Stufe): Wirtschaft (Goldader +40 % Gold, Fleißige Hände +40 % Arbeitstempo, Kräftige Schläge +25 % pro Klick), Kanone (Erbstück-Lauf +12 % Reichweite, Zeitgehärtete Kugeln +25 % Schaden, Ruhige Hand +2 Punkte grüne Zone, Sternenfänger +1 Stern), Erbe (Startkapital, Stammarbeiter, Werkzeugkiste, Alte Pläne −7 % Upgrade-Kosten), Zeit (Splitterlinse +10 % Splitter, Lange Nächte +4 h Offline, Weitblick +5 % Vorschau). Werte je Stufe.
+- **Verloren:** Gold, Ressourcen, Zeitalter, Kanonen-Upgrades, Arbeiter, Werkzeug, Hindernis-Schäden, Munition, Schreine, Farm.
+- **Bleibt:** Zeitsplitter, Zeitwerkstatt, Challenge-Boni, Trainings-Boni, Bestwerte und Statistik (Allzeit-Rekord im Fortschrittsbalken, 🏁 zeigt den Rekord des aktuellen Laufs).
+- **Zeitwerkstatt** (dauerhaft, Kosten = Basis × 1,5^Stufe): Wirtschaft (Goldader +40 % Gold, Fleißige Hände +40 % Arbeitstempo, Kräftige Schläge +25 % pro Klick, Grüner Daumen +25 % Farm-Ernte), Kanone (Scharfes Auge: mehr kritischer Schaden, Vogelflüsterer: mehr Vogel-Schub, Erbstück-Lauf +12 % Reichweite, Zeitgehärtete Kugeln +25 % Schaden, Ruhige Hand +2 Punkte grüne Zone, Sternenfänger +1 Stern), Erbe (Startkapital, Stammarbeiter, Werkzeugkiste, Alte Pläne −7 % Upgrade-Kosten, Munitionsvorrat, Schreinsegen), Zeit (Splitterlinse +10 % Splitter, Lange Nächte +4 h Offline, Weitblick +5 % Vorschau, Glückskind: gute Ereignisse häufiger, Trainingseifer, Challenge-Meister). Werte je Stufe.
 - Challenges geben keine Splitter, und die Zeitwerkstatt gibt keine Challenge-Boni. Im Kanonen-Tab werden beide Boni getrennt angezeigt.
 - Jeder Lauf beginnt in der Steinzeit (kein Startzeitalter-Upgrade), Kanonen-Optik ist immer die des aktuellen Zeitalters.
 - Konzept und Entscheidungen: `docs/rebirth-konzept.md`.
@@ -88,7 +110,7 @@ Kategorien: weiteste Distanz, meiste Zeitsprünge, meiste Upgrades, wenigste Sch
 
 Das Grundspiel ist bewusst härter, damit der Zeitsprung der Kern ist. Stand Runde 4: Hindernisse haben mehr Leben (hp0 28, ×4,95 je Zeitalter), Kanonen-Upgrades sind günstiger (c0 13, ×4,85 je Zeitalter), Ressourcen-Upgrades teurer (Arbeiter 40, Werkzeug 20, ×3,9 je Zeitalter) und Upgrades brauchen mehr Teile (×1,85 je Zeitalter). So fließen je nach Zeitalter etwa 25–45 % des Goldes in Arbeiter/Werkzeug.
 
-- `node tools/sim.js` (ein Lauf ohne Zeitsprung) zeigt je Zeitalter, wann Hindernisse und Upgrades fertig sind, wie sich das Gold auf Kanone/Ressourcen verteilt und wie viel vom Klicken kommt: ca. **5,6 Stunden** bis 1.000 km.
+- `node tools/sim.js` (ein Lauf ohne Zeitsprung) zeigt je Zeitalter, wann Hindernisse und Upgrades fertig sind, wie sich das Gold auf Kanone/Ressourcen verteilt und wie viel vom Klicken kommt: ca. **5,9 Stunden** bis 1.000 km (Stand 0.7.0, Aufstieg ohne Pflicht-Upgrades).
 - `node tools/sim-rebirth.js`: ca. **4,8 Stunden und 3 Zeitsprünge** bis 1.000 km.
 - Alle Werte in `core.js` (`P`), auch die Zeitwerkstatt-Effekte (`wsAder`, `wsLauf` …).
 
@@ -99,8 +121,9 @@ Das Grundspiel ist bewusst härter, damit der Zeitsprung der Kern ist. Stand Run
 | `index.html` | Markup und Styles |
 | `core.js` | Spielkern ohne DOM: Zeitalter, Upgrades, Ressourcen, Zeitsprung/Zeitwerkstatt, Balancing (`P`) |
 | `game.js` | Steuerung: Schuss-Ablauf, Physik, Oberfläche, Speichern, Spielschleife |
-| `render.js` | Grafik (Canvas 2D): Kanonen, Schütze, Hindernisse, Flieger, Himmel, Ereignisse, Aufstiegs-Show |
-| `res-render.js` | Ressourcen-Ansicht: Abbaustellen, Ressourcen-Grafiken, Arbeiter, Lager |
+| `render.js` | Grafik (Canvas 2D): Kanonen, Schütze, Hindernisse, Vogel, Himmel, Ereignisse, Munition, Schreine, Training, Aufstiegs-Show, Zeitriss und Rakete |
+| `res-render.js` | Ressourcen-Ansicht: Abbaustellen, Ressourcen-Grafiken, Tippbewegungen, Arbeiter, Lager |
+| `farm-render.js` | Farm-Ansicht: Beete, Bauer, Bots, Scheune, Markt |
 | `tools/sim.js` | Bot-Simulation für das Balancing (`HIT=0.5 TAPS=3 node tools/sim.js`) |
 | `tools/sim-rebirth.js` | Bot-Simulation mit Zeitsprüngen (`STALL=8 node tools/sim-rebirth.js`) |
 | `docs/rebirth-konzept.md` | Konzept Zeitsprung / Zeitwerkstatt |
@@ -113,6 +136,6 @@ Das Grundspiel ist bewusst härter, damit der Zeitsprung der Kern ist. Stand Run
 Live unter **https://lycidas42.github.io/epochenschuss/**. Pages veröffentlicht direkt den Branch `main` (Ordner `/`), es gibt keinen Build-Schritt.
 
 - **Zwei Varianten aus demselben Code:** Auf `*.github.io` läuft die öffentliche Version ohne Test- und Entwickler-Menü (Entwickler-Schalter sind dort immer aus). Überall sonst (lokal per `npx http-server`, Claude-Vorschau, `dist/`-Einzeldatei) ist es die Entwickler-Version mit allen Werkzeugen. Gesteuert über `DEV` am Anfang von `game.js`.
-- Bei jeder Veröffentlichung in `sw.js` die `VERSION` erhöhen, damit installierte Apps alte Dateien verwerfen.
+- Bei jeder Veröffentlichung `VERSION` in `sw.js` **und** `game.js` erhöhen (wird im ⚙️-Menü angezeigt), damit installierte Apps alte Dateien verwerfen.
 - Neue Dateien, die offline gebraucht werden, in `sw.js` unter `APP` eintragen.
 - Spielstände liegen im `localStorage` des Geräts unter `jushoot-v2` (Bestenliste `jushoot-scores`). Die Schlüssel stammen aus dem Arbeitstitel und bleiben so, damit vorhandene Spielstände erhalten bleiben.
