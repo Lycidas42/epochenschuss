@@ -4,7 +4,7 @@
   const J = window.JS;
   const $ = q => document.querySelector(q);
   const SAVE = 'jushoot-v2', SCORES = 'jushoot-scores';
-  const VERSION = '0.7.6'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
+  const VERSION = '0.7.7'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
   const G = 9.81e-3; // km/s²
 
   // ---------- Speichern ----------
@@ -270,22 +270,23 @@
         const p = o.parts[i], q = J.partPos(o, i, view.time, ob.ys);
         if (b.x + br < q.x || b.x - br > q.x + p.w || b.y + br < q.y || b.y - br > q.y + p.h) continue;
         if (ob.state === 'locked') { block(b, q.x, '🔒 Erst ab ' + J.AGES[o.age].name); return; }
-        if (shot.ammo === 'spreng') { block(b, q.x, '💣 Abgeprallt, kein Schaden'); return; } // Sprengkugel prallt ab, macht aber keinen Schaden (Nico)
         const dmg = shotDmg();
-        hp[i] = Math.max(0, hp[i] - dmg);
-        ob.hit[i] = 1;
         const [sx, sy] = toScreen(b.x, b.y);
-        burst(sx, sy, '#ffb347', 12); sfx('hit');
-        floatText(sx, sy - 24, (shot.crit ? 'Kritisch −' : '−') + J.fmtNum(Math.ceil(dmg)), '#ff8a7a', 15);
+        if (shot.ammo === 'spreng') { // Sprengkugel (Nico): Aufprall macht Schaden, dann sekundäre Explosion mit Flächenschaden am Hindernis
+          damagePart(ob, i, q, dmg, sx, sy);
+          blast(b.x, b.y, sx, sy);
+          o.parts.forEach((pp, j) => {
+            if (j === i || hp[j] <= 0) return;
+            const qj = J.partPos(o, j, view.time, ob.ys), cx = qj.x + pp.w / 2, cy = qj.y + pp.h / 2;
+            if (Math.hypot(cx - b.x, cy - b.y) > o.u * 3.5) return;
+            const [jx, jy] = toScreen(cx, cy); damagePart(ob, j, qj, dmg * J.P.sprengSplash, jx, jy);
+          });
+          shot.boomed = true; syncObstacles();
+          if (hp[i] > 0) block(b, q.x, null); else { b.vx *= 0.5; b.vy *= 0.5; }
+          return;
+        }
+        damagePart(ob, i, q, dmg, sx, sy);
         if (hp[i] <= 0) {
-          destroyFx(o, i, q);
-          const g = J.P.partGold * J.shotGold(s, o.at); shot.bonus += g; s.st.parts++;
-          floatText(sx, sy - 44, 'Teil zerstört! +' + J.fmtNum(g) + ' Gold', '#ffd23f', 15);
-          if (J.obsDone(s, o.id)) {
-            const g2 = J.P.obsGold * J.shotGold(s, o.at); shot.bonus += g2;
-            floatText(sx, sy - 66, o.name + ' zerstört! +' + J.fmtNum(g2) + ' Gold', '#ffd23f', 17);
-            burst(sx, view.groundY - 10, '#8a7a6a', 24); view.shake = 0.5; sfx('up');
-          }
           if (!pierce(o.id + ':' + i)) { b.vx *= 0.7; b.vy *= 0.7; }
           syncObstacles();
         } else if (pierce(o.id + ':' + i)) { b.vx *= 0.9; floatText(sx, sy - 44, 'Durchbohrt!', '#c9d4ff', 14); }
@@ -295,6 +296,29 @@
     }
   }
 
+  // Schaden an einem Hindernis-Teil inkl. Zerstörung und Gold
+  function damagePart(ob, i, q, dmg, sx, sy) {
+    const o = ob.o, hp = s.oh[o.id]; if (hp[i] <= 0) return;
+    hp[i] = Math.max(0, hp[i] - dmg); ob.hit[i] = 1;
+    burst(sx, sy, '#ffb347', 12); sfx('hit');
+    floatText(sx, sy - 24, (shot.crit ? 'Kritisch −' : '−') + J.fmtNum(Math.ceil(dmg)), '#ff8a7a', 15);
+    if (hp[i] > 0) return;
+    destroyFx(o, i, q);
+    const g = J.P.partGold * J.shotGold(s, o.at); shot.bonus += g; s.st.parts++;
+    floatText(sx, sy - 44, 'Teil zerstört! +' + J.fmtNum(g) + ' Gold', '#ffd23f', 15);
+    if (J.obsDone(s, o.id)) {
+      const g2 = J.P.obsGold * J.shotGold(s, o.at); shot.bonus += g2;
+      floatText(sx, sy - 66, o.name + ' zerstört! +' + J.fmtNum(g2) + ' Gold', '#ffd23f', 17);
+      burst(sx, view.groundY - 10, '#8a7a6a', 24); view.shake = 0.5; sfx('up');
+    }
+  }
+  // Explosion der Sprengkugel (Funken, Rauch, Ring)
+  function blast(wx, wy, sx, sy) {
+    for (let k = 0; k < 40; k++) { const an = Math.random() * Math.PI * 2, sp = 140 + Math.random() * 280; view.parts.push({ x: sx, y: sy, vx: Math.cos(an) * sp, vy: Math.sin(an) * sp, r: 2 + Math.random() * 3, life: 0.6 + Math.random() * 0.5, col: k % 3 ? '#ffb347' : '#fff3b0', spark: true }); }
+    for (let k = 0; k < 12; k++) view.parts.push({ x: sx + (Math.random() - 0.5) * 34, y: sy + (Math.random() - 0.5) * 34, vx: (Math.random() - 0.5) * 60, vy: -30 - Math.random() * 50, r: 9 + Math.random() * 10, life: 1.3, col: 'rgba(70,60,55,0.55)', dust: true });
+    view.rings = view.rings || []; view.rings.push({ x: sx, y: sy, t: 0, col: '255,180,80' });
+    floatText(sx, sy - 70, 'BUMM! Explosion!', '#ffb347', 19); view.shake = Math.max(view.shake, 0.6); setTimeout(() => sfx('hit'), 90);
+  }
   // Zerstör-Animation: Teil sackt ein, Trümmer fliegen und bleiben ~10 s auf der Bahn liegen; Ballons platzen
   // Trümmer leben in Weltkoordinaten (km), damit sie beim Zoomen an ihrer Stelle bleiben.
   function destroyFx(o, i, q) {
@@ -504,10 +528,14 @@
       if (chal.hp[i] <= 0 || shot.pierced.includes('c:' + i)) continue;
       const p = o.parts[i], q = J.partPos(o, i, view.time, chal.ys);
       if (b.x + br < q.x || b.x - br > q.x + p.w || b.y + br < q.y || b.y - br > q.y + p.h) continue;
-      if (shot.ammo === 'spreng') { block(b, q.x, '💣 Abgeprallt, kein Schaden'); return; }
       const dmg = shotDmg();
+      const [sx, sy] = toScreen(b.x, b.y);
+      if (shot.ammo === 'spreng' && !shot.boomed) { // Explosion: Flächenschaden an den Nachbarteilen
+        shot.boomed = true; blast(b.x, b.y, sx, sy);
+        o.parts.forEach((pp, j) => { if (j === i || chal.hp[j] <= 0) return; const qj = J.partPos(o, j, view.time, chal.ys); if (Math.hypot(qj.x + pp.w / 2 - b.x, qj.y + pp.h / 2 - b.y) > o.u * 3.5) return; chal.hp[j] = Math.max(0, chal.hp[j] - dmg * J.P.sprengSplash); chal.hit[j] = 1; if (chal.hp[j] <= 0) destroyFx(o, j, qj); });
+      }
       chal.hp[i] = Math.max(0, chal.hp[i] - dmg); chal.hit[i] = 1;
-      const [sx, sy] = toScreen(b.x, b.y); burst(sx, sy, '#ffb347', 12); sfx('hit');
+      burst(sx, sy, '#ffb347', 12); sfx('hit');
       if (chal.hp[i] <= 0) { destroyFx(o, i, q); floatText(sx, sy - 30, (chal.train ? 'Ziel zerstört!' : 'Teil zerstört! ' + chal.hp.filter(h => h > 0).length + ' übrig'), '#ffd23f', 15); if (!pierce('c:' + i)) { b.vx *= 0.7; b.vy *= 0.7; } if (chal.train && chal.hp.every(h => h <= 0)) trainDone(); }
       else { floatText(sx, sy - 24, '−' + J.fmtNum(Math.ceil(dmg)), '#ff8a7a', 15); if (!pierce('c:' + i)) block(b, q.x, null); }
       return;

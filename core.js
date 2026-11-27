@@ -10,6 +10,7 @@
     d0: 10, wuchtF: 1.35, ageD: 1.8, crit: 1.5,   // Schaden
     hp0: 28, hpG: 4.95, hpK: 0.45,                // Leben der Hindernis-Teile
     g0: 5, gExp: 0.85, gluckF: 1.12, partGold: 2, obsGold: 6, // Gold
+    sprengSplash: 0.6, // Sprengkugel: Flächenschaden der Explosion an Nachbarteilen (Anteil vom Treffer-Schaden)
     c0: 13, cAge: 4.85, cStep: 0.22,              // Upgrade-Kosten (Gold)
     n0: 6, nAge: 1.85, nStep: 0.2,                // Upgrade-Kosten (Teile): wächst schneller als früher, damit Arbeiter/Werkzeug nötig bleiben
     tap: 0.1, tapF: 0.7, cycle: 6,                // Ressourcen: Fortschritt je Klick (× tapF je Zeitalter: Klicken hilft vor allem am Anfang), Sekunden je Durchlauf pro Arbeiter
@@ -237,7 +238,7 @@
   const AMMO = [
     { id: 'kugel',  icon: '⚫', name: 'Kugel',        price: 0,   desc: 'Die normale Munition. Unbegrenzt.' },
     { id: 'pfeil',  icon: '🏹', name: 'Pfeil',        price: 1.2, desc: '×3 Schaden an Hindernissen, fliegt aber 15 % weniger weit.' },
-    { id: 'spreng', icon: '💣', name: 'Sprengkugel',  price: 1.0, desc: 'Explodiert am Boden und schleudert sich weit nach vorn. Prallt an Hindernissen ab, ohne Schaden zu machen.' },
+    { id: 'spreng', icon: '💣', name: 'Sprengkugel',  price: 1.0, desc: 'Trifft sie ein Hindernis, macht sie Schaden und explodiert: Flächenschaden an den Teilen daneben. Am Boden explodiert sie und schleudert sich weit nach vorn.' },
     { id: 'bohrer', icon: '🔩', name: 'Bohrkugel',    price: 1.6, desc: 'Durchbohrt bis zu 3 Teile und macht an jedem vollen Schaden.' },
     { id: 'huepf',  icon: '🏀', name: 'Hüpfkugel',    price: 0.6, desc: 'Springt nach der Landung noch 3-mal weiter.' },
     { id: 'gold',   icon: '💰', name: 'Goldkugel',    price: 1.3, desc: 'Dreifaches Gold für diesen Schuss.' },
