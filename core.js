@@ -165,7 +165,6 @@
     { id: 'ader',    br: 'Wirtschaft', icon: '💰', name: 'Goldader',          max: 10, base: 2, eff: l => '+' + pc(P.wsAder * l) + ' % Gold' },
     { id: 'haende',  br: 'Wirtschaft', icon: '👷', name: 'Fleißige Hände',    max: 8,  base: 3, eff: l => 'Arbeiter +' + pc(P.wsHaende * l) + ' % schneller' },
     { id: 'schlag',  br: 'Wirtschaft', icon: '⛏️', name: 'Kräftige Schläge',  max: 6,  base: 2, eff: l => '+' + pc(P.wsSchlag * l) + ' % Abbau pro Klick' },
-    { id: 'daumen',  br: 'Wirtschaft', icon: '🌾', name: 'Grüner Daumen',     max: 6,  base: 4, eff: l => 'Farm-Ernte +' + pc(P.wsDaumen * l) + ' %' },
     { id: 'lauf',    br: 'Kanone',     icon: '🎯', name: 'Erbstück-Lauf',     max: 10, base: 3, eff: l => '+' + pc(P.wsLauf * l) + ' % Reichweite' },
     { id: 'kugel',   br: 'Kanone',     icon: '💥', name: 'Zeitgehärtete Kugeln', max: 10, base: 3, eff: l => '+' + pc(P.wsKugel * l) + ' % Schaden' },
     { id: 'krit',    br: 'Kanone',     icon: '🎯', name: 'Scharfes Auge',     max: 5,  base: 4, eff: l => 'Kritische Treffer +' + pc(P.wsKrit * l) + ' % Schaden' },
@@ -184,6 +183,13 @@
     { id: 'trainer', br: 'Zeit',       icon: '🏋️', name: 'Trainingseifer',    max: 4,  base: 5, eff: l => 'Trainings-Boni +' + pc(P.wsTrainer * l) + ' %' },
     { id: 'meister', br: 'Zeit',       icon: '🏆', name: 'Challenge-Meister', max: 5,  base: 4, eff: l => 'Challenge-Boni +' + pc(P.wsMeister * l) + ' %' },
     { id: 'blick',   br: 'Zeit',       icon: '🔭', name: 'Weitblick',         max: 4,  base: 3, eff: l => 'Flugbahn-Vorschau +' + 5 * l + ' %' },
+    // Farm (Nico): dauerhafte Farm-Upgrades, gelten für jede neue Farm nach dem Zeitsprung
+    { id: 'daumen',  br: 'Farm',       icon: '🌾', name: 'Grüner Daumen',     max: 6,  base: 4, eff: l => 'Farm-Ernte +' + pc(P.wsDaumen * l) + ' %' },
+    { id: 'ewig',    br: 'Farm',       icon: '🧪', name: 'Ewiger Dünger',     max: 5,  base: 3, eff: l => 'Saat wächst +' + 15 * l + ' % schneller' },
+    { id: 'acker',   br: 'Farm',       icon: '🟫', name: 'Großer Acker',      max: 4,  base: 3, eff: l => 'Start mit ' + (3 + l) + ' Beeten' },
+    { id: 'erbsaat', br: 'Farm',       icon: '🌻', name: 'Erbsaat',           max: 4,  base: 4, eff: l => 'Start mit ' + (l + 1) + ' Sorten: ' + CROPS.slice(0, l + 1).map(c => c.name).join(', ') },
+    { id: 'beutel',  br: 'Farm',       icon: '👜', name: 'Saatbeutel',        max: 4,  base: 2, eff: l => 'Start mit ' + 10 * l + ' Saatgut je Sorte, Saatgut −' + 10 * l + ' %' },
+    { id: 'stammbot', br: 'Farm',      icon: '🤖', name: 'Stamm-Bots',        max: 5,  base: 5, eff: l => 'Start mit ' + ['Gieß', 'Ernte', 'Säe', 'Saatgut', 'Händler'].slice(0, l).join('-, ') + '-Bot' },
   ];
   function pc(x) { return Math.round(x * 100); }
   function startGold(l) { return l ? Math.round(30 * Math.pow(3, l - 1)) : 0; }
@@ -196,6 +202,7 @@
     const lv = W(s, id), c = wsCost(s, w);
     if (lv >= w.max || s.meta.sp < c) return false;
     s.meta.sp -= c; s.meta.upg[id] = lv + 1;
+    if (s.farm && ['acker', 'erbsaat', 'beutel', 'stammbot'].includes(id)) farmMeta(s, s.farm); // gilt sofort für die laufende Farm
     if (id === 'kiste') s.res.forEach(r => { r.tool = Math.max(r.tool, 1 + lv + 1); }); // gilt sofort
     if (id === 'kapital' && s.age === 0 && s.shots === 0) s.gold += startGold(lv + 1) - startGold(lv); // direkt nach dem Sprung gilt es sofort
     return true;
@@ -298,18 +305,25 @@
     { id: 'saat',  name: 'Saatgut-Bot', base: 20, desc: 'kauft das ausgewählte Saatgut nach' },
   ];
   const FARM_MAX = 12, FARM_START = 3, SEED_PACK = 5;
-  function newFarm() { return { plots: Array.from({ length: FARM_START }, () => ({ st: 'empty', crop: null, t: 0 })), seeds: { weizen: 6 }, grain: {}, crops: { weizen: true }, sel: 'weizen', bots: {}, botT: {}, sold: 0 }; }
-  const farmOf = s => s.farm || (s.farm = newFarm());
+  function newFarm(s) { const f = { plots: Array.from({ length: FARM_START }, () => ({ st: 'empty', crop: null, t: 0 })), seeds: { weizen: 6 }, grain: {}, crops: { weizen: true }, sel: 'weizen', bots: {}, botT: {}, sold: 0 }; if (s) farmMeta(s, f, true); return f; }
+  // Zeitwerkstatt-Farm-Upgrades auf eine Farm anwenden (nur aufstocken, nie wegnehmen)
+  function farmMeta(s, f, fresh) {
+    while (f.plots.length < Math.min(FARM_MAX, FARM_START + W(s, 'acker'))) f.plots.push({ st: 'empty', crop: null, t: 0 });
+    CROPS.slice(0, W(s, 'erbsaat') + 1).forEach(c => { f.crops[c.id] = true; });
+    if (fresh) CROPS.forEach(c => { if (f.crops[c.id]) f.seeds[c.id] = Math.max(f.seeds[c.id] || 0, 10 * W(s, 'beutel') + (c.id === 'weizen' ? 6 : 0)); });
+    ['giess', 'ernte', 'saer', 'saat', 'markt'].slice(0, W(s, 'stammbot')).forEach(id => { f.bots[id] = Math.max(f.bots[id] || 0, 1); });
+  }
+  const farmOf = s => s.farm || (s.farm = newFarm(s));
   const cropOf = id => CROPS.find(c => c.id === id);
   const fUnit = s => goldUnit(s);
-  const seedCost = (s, id) => Math.max(1, Math.round(cropOf(id).seed * SEED_PACK * fUnit(s)));
+  const seedCost = (s, id) => Math.max(1, Math.round(cropOf(id).seed * SEED_PACK * fUnit(s) * (1 - 0.1 * W(s, 'beutel'))));
   const sellPrice = (s, id) => cropOf(id).sell * fUnit(s) * (1 + P.wsDaumen * W(s, 'daumen'));
   const plotCost = s => Math.round(4 * fUnit(s) * Math.pow(1.45, farmOf(s).plots.length - FARM_START));
   const cropCost = (s, id) => Math.round(cropOf(id).unlock * fUnit(s));
   const botCost = (s, id) => { const b = BOTS.find(x => x.id === id), lv = farmOf(s).bots[id] || 0; return Math.round(b.base * fUnit(s) * Math.pow(2.2, lv)); };
   // Dünger: Pflanzen wachsen schneller (+30 % Tempo je Stufe, max. 5)
   const FERT_MAX = 5;
-  const growSpeed = s => 1 + 0.3 * (farmOf(s).fert || 0);
+  const growSpeed = s => (1 + 0.3 * (farmOf(s).fert || 0)) * (1 + 0.15 * W(s, 'ewig'));
   const fertCost = s => Math.round(15 * fUnit(s) * Math.pow(2.6, farmOf(s).fert || 0));
   function buyFert(s) { const f = farmOf(s), c = fertCost(s); if ((f.fert || 0) >= FERT_MAX || s.gold < c) return false; s.gold -= c; f.fert = (f.fert || 0) + 1; return true; }
   const botEvery = lv => 3 / lv; // Sekunden je Handgriff eines Bots
