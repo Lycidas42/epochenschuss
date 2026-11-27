@@ -449,9 +449,9 @@
       // Beine
       const legCol = O.leg, sw = Math.sin(t * 2) * 0.3;
       c.strokeStyle = legCol; c.lineWidth = 5; c.lineCap = 'round';
-      const step = push ? 3 * k : -3 * k;
-      c.beginPath(); c.moveTo(-3, -16); c.lineTo(-5 - step, -2); c.moveTo(3, -16); c.lineTo(5 + step * 0.5 + sw, -2); c.stroke();
-      if (O.shoe) { c.fillStyle = O.shoe; rr(c, -9 - step, -3.5, 7, 4, 2); c.fill(); rr(c, 2 + step * 0.5, -3.5, 8, 4, 2); c.fill(); }
+      const step = (push ? 3 * k : -3 * k) + (pose === 'walk' ? Math.sin(t * 12) * 4 : 0), step2 = pose === 'walk' ? -step * 2 : step * 0.5;
+      c.beginPath(); c.moveTo(-3, -16); c.lineTo(-5 - step, -2); c.moveTo(3, -16); c.lineTo(5 + step2 + sw, -2); c.stroke();
+      if (O.shoe) { c.fillStyle = O.shoe; rr(c, -9 - step, -3.5, 7, 4, 2); c.fill(); rr(c, 2 + step2, -3.5, 8, 4, 2); c.fill(); }
       // Oberkörper (lehnt sich beim Ziehen zurück bzw. beim Drücken nach vorn)
       c.save(); c.translate(0, -16); c.rotate(lean); c.translate(0, 16 + breathe * 0.3);
       // Haare hinten (Frau: lang)
@@ -1012,6 +1012,107 @@
       }
     }
 
+    // ---------- Zeitsprung: Rakete ----------
+    const JT = { land: 1.2, door: 1.5, walk: 2.6, climb: 3.2, count: 4.3, fly: 6.9 };
+    // Position und Größe der Rakete auf dem Bildschirm (für Rauch in game.js)
+    function rocketPos(v, r) {
+      const gy = v.groundY, t = r.t;
+      if (t < JT.land) { const f = 1 - t / JT.land; return { x: r.rx, y: gy - 90 * f * f * 3, s: 1, a: 0 }; }
+      if (t < JT.count) return { x: r.rx, y: gy, s: 1, a: 0, shake: t > JT.climb ? (t - JT.climb) * 1.5 : 0 };
+      const p = Math.min(1, (t - JT.count) / (JT.fly - JT.count)), e = p * p * (3 - 2 * p);
+      const tx = W * 0.5, ty = Math.max(40, gy * 0.16);
+      return { x: r.rx + (tx - r.rx) * Math.pow(p, 1.6), y: gy - (gy - ty) * e, s: Math.max(0.035, 1 - 0.965 * Math.pow(p, 0.9)), a: 0.5 * Math.pow(p, 1.4) };
+    }
+    function drawRocket(v) {
+      const r = v.rocket; if (!r) return;
+      const p = rocketPos(v, r), t = r.t, gy = v.groundY;
+      if (t > JT.fly) { // nur noch ein funkelnder Punkt am Himmel
+        const k = Math.min(1, (t - JT.fly) / 0.5), tw = 1 - k;
+        c.fillStyle = `rgba(255,255,255,${tw})`; c.beginPath(); c.arc(p.x, p.y, 2.2, 0, TAU); c.fill();
+        c.fillRect(p.x - 12 * tw, p.y - 0.7, 24 * tw, 1.4); c.fillRect(p.x - 0.7, p.y - 12 * tw, 1.4, 24 * tw);
+        return;
+      }
+      c.save(); c.translate(p.x + (p.shake ? Math.sin(t * 80) * p.shake : 0), p.y); c.rotate(p.a); c.scale(p.s, p.s);
+      const flying = t < JT.land || t > JT.count;
+      if (flying) { // Flamme
+        const fl = 0.8 + 0.2 * Math.sin(t * 50), L = (t < JT.land ? 26 : 40) * fl;
+        const g = c.createLinearGradient(0, 0, 0, L); g.addColorStop(0, '#fff3b0'); g.addColorStop(0.4, '#ffb347'); g.addColorStop(1, 'rgba(255,90,40,0)');
+        c.fillStyle = g; c.beginPath(); c.moveTo(-8, -2); c.quadraticCurveTo(0, L * 1.3, 8, -2); c.fill();
+      }
+      if (t > JT.door && t < JT.climb + 0.2) { // Leiter
+        c.strokeStyle = '#8d939b'; c.lineWidth = 2; c.beginPath(); c.moveTo(-18, 0); c.lineTo(-11, -56); c.moveTo(-12, 0); c.lineTo(-5, -56); for (let k = 1; k < 7; k++) { const yy = -k * 8; c.moveTo(-18 + k * 1, yy); c.lineTo(-12 + k * 1, yy); } c.stroke();
+      }
+      // Flossen
+      c.fillStyle = '#d9473b'; [-1, 1].forEach(d => { c.beginPath(); c.moveTo(d * 9, -22); c.lineTo(d * 20, -2); c.lineTo(d * 20, 4); c.lineTo(d * 9, -4); c.closePath(); c.fill(); });
+      // Rumpf
+      const bg = c.createLinearGradient(-11, 0, 11, 0); bg.addColorStop(0, '#c9ced6'); bg.addColorStop(0.45, '#ffffff'); bg.addColorStop(1, '#9aa1ab');
+      c.fillStyle = bg; c.beginPath(); c.moveTo(-10, -2); c.lineTo(-10, -60); c.quadraticCurveTo(-10, -84, 0, -98); c.quadraticCurveTo(10, -84, 10, -60); c.lineTo(10, -2); c.closePath(); c.fill();
+      c.fillStyle = '#d9473b'; c.beginPath(); c.moveTo(-7.5, -76); c.quadraticCurveTo(0, -80, 7.5, -76); c.quadraticCurveTo(6, -88, 0, -98); c.quadraticCurveTo(-6, -88, -7.5, -76); c.fill();
+      c.fillStyle = '#5d6a78'; c.fillRect(-10, -8, 20, 4); c.fillStyle = '#d9473b'; c.fillRect(-10, -30, 20, 3);
+      c.fillStyle = '#3b3190'; c.fillRect(-1, -28, 2, 20);
+      // Fenster mit Schütze
+      c.fillStyle = '#8d939b'; c.beginPath(); c.arc(0, -58, 7.5, 0, TAU); c.fill();
+      c.fillStyle = '#9fe0ff'; c.beginPath(); c.arc(0, -58, 5.5, 0, TAU); c.fill();
+      if (t > JT.climb) { c.fillStyle = '#f0c79a'; c.beginPath(); c.arc(0.5, -57, 3.4, 0, TAU); c.fill(); c.fillStyle = '#222'; c.beginPath(); c.arc(1.8, -57.6, 0.7, 0, TAU); c.fill(); }
+      c.fillStyle = 'rgba(255,255,255,0.6)'; c.beginPath(); c.arc(-2, -60.5, 1.6, 0, TAU); c.fill();
+      // Tür (offen beim Einsteigen)
+      if (t > JT.door && t < JT.climb + 0.1) { c.fillStyle = '#2a2e33'; rr(c, -6, -48, 12, 16, 3); c.fill(); c.fillStyle = '#c9ced6'; rr(c, -15, -48, 9, 16, 2); c.fill(); }
+      else { c.strokeStyle = 'rgba(0,0,0,0.25)'; c.lineWidth = 1; rr(c, -6, -48, 12, 16, 3); c.stroke(); }
+      c.restore();
+      if (t > JT.climb && t < JT.count) { const k = (t - JT.climb) / (JT.count - JT.climb); c.fillStyle = `rgba(255,255,255,${0.25 * k})`; for (let i = 0; i < 4; i++) { c.beginPath(); c.arc(r.rx + (i - 1.5) * 14, gy - 4 - Math.sin(t * 8 + i) * 2, 6 + k * 6, 0, TAU); c.fill(); } }
+    }
+    // Zeitriss: Risse im Himmel, ein Strudel mit Uhr öffnet sich, Splitter fliegen – „Zeitsprung möglich!“
+    const CRACKS = Array.from({ length: 9 }, (_, i) => { const pts = [[0, 0]]; let a = i / 9 * TAU + hsh(i) * 0.5, x = 0, y = 0; for (let k = 0; k < 7; k++) { a += (hsh(i * 13 + k) - 0.5) * 1.1; x += Math.cos(a) * 0.16; y += Math.sin(a) * 0.16; pts.push([x, y]); } return pts; });
+    function riftCenter(v) { return [W * 0.6, Math.max(60, v.groundY * 0.3)]; }
+    function swirl(cx, cy, R, t, a) {
+      const g = c.createRadialGradient(cx, cy, 1, cx, cy, R); g.addColorStop(0, `rgba(255,255,255,${0.95 * a})`); g.addColorStop(0.35, `rgba(181,140,255,${0.85 * a})`); g.addColorStop(0.8, `rgba(60,30,140,${0.7 * a})`); g.addColorStop(1, 'rgba(20,10,60,0)');
+      c.fillStyle = g; c.beginPath(); c.arc(cx, cy, R, 0, TAU); c.fill();
+      c.save(); c.translate(cx, cy); c.rotate(t * 2.2);
+      for (let k = 0; k < 5; k++) { c.rotate(TAU / 5); c.strokeStyle = k % 2 ? `rgba(75,227,255,${0.8 * a})` : `rgba(255,122,217,${0.7 * a})`; c.lineWidth = Math.max(1, R * 0.06); c.beginPath(); for (let q = 0; q <= 20; q++) { const f = q / 20, rr2 = R * 0.95 * f, an = f * 3.2; q ? c.lineTo(Math.cos(an) * rr2, Math.sin(an) * rr2) : c.moveTo(0, 0); } c.stroke(); }
+      c.restore();
+    }
+    function drawRift(v) {
+      const f = v.riftFx; if (!f) return;
+      const t = f.t, [cx, cy] = riftCenter(v), out = t > 4.2 ? Math.max(0, (5 - t) / 0.8) : 1, D = Math.min(W, H);
+      c.fillStyle = `rgba(12,6,30,${Math.min(0.55, t * 0.9) * out})`; c.fillRect(0, 0, W, H);
+      // Risse wachsen über den Himmel
+      const grow = Math.min(1, t / 1.3);
+      c.save(); c.shadowColor = '#7ff6ff'; c.shadowBlur = 12; c.lineCap = 'round'; c.lineJoin = 'round';
+      CRACKS.forEach((pts, i) => { const n = Math.max(1, Math.floor(pts.length * grow)); c.strokeStyle = `rgba(${i % 2 ? '200,240,255' : '230,200,255'},${0.95 * out})`; c.lineWidth = 2.6 - i % 3 * 0.6; c.beginPath(); for (let k = 0; k < n; k++) { const x = cx + pts[k][0] * D * 1.5, y = cy + pts[k][1] * D * 1.5; k ? c.lineTo(x, y) : c.moveTo(x, y); } c.stroke(); });
+      c.restore();
+      // Strudel mit Uhr
+      if (t > 0.9) {
+        const R = D * 0.2 * Math.min(1, (t - 0.9) / 0.8) * (0.95 + 0.05 * Math.sin(t * 6));
+        swirl(cx, cy, R, t, out);
+        c.save(); c.translate(cx, cy); c.globalAlpha = out;
+        c.strokeStyle = 'rgba(255,240,200,0.9)'; c.lineWidth = 2; c.beginPath(); c.arc(0, 0, R * 0.62, 0, TAU); c.stroke();
+        for (let k = 0; k < 12; k++) { const a = k / 12 * TAU - t * 0.8; c.fillStyle = '#fff3d0'; c.beginPath(); c.arc(Math.cos(a) * R * 0.62, Math.sin(a) * R * 0.62, k % 3 ? 1.5 : 3, 0, TAU); c.fill(); }
+        c.lineCap = 'round'; c.strokeStyle = '#ffffff'; c.lineWidth = 3; c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(t * 9) * R * 0.45, Math.sin(t * 9) * R * 0.45); c.stroke();
+        c.lineWidth = 4; c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(-t * 2.5) * R * 0.3, Math.sin(-t * 2.5) * R * 0.3); c.stroke();
+        c.restore();
+      }
+      // Splitter fliegen aus dem Riss
+      if (t > 0.3) for (let i = 0; i < 26; i++) { const a = hsh(i + 7) * TAU, sp = 40 + hsh(i + 9) * 160, k = ((t - 0.3) * (0.6 + hsh(i) * 0.6)) % 2.2, x = cx + Math.cos(a) * sp * k, y = cy + Math.sin(a) * sp * k + 20 * k * k;
+        c.save(); c.globalAlpha = Math.max(0, 1 - k / 2.2) * out; c.translate(x, y); c.rotate(t * 4 + i); c.fillStyle = i % 2 ? '#bff8ff' : '#e0c8ff'; c.beginPath(); c.moveTo(0, -5); c.lineTo(3, 2); c.lineTo(-3, 3); c.closePath(); c.fill(); c.restore(); }
+      // Titel
+      if (t > 1.5) {
+        const k = Math.min(1, (t - 1.5) / 0.35), pop = k < 1 ? 0.4 + 0.6 * k + Math.sin(k * Math.PI) * 0.25 : 1 + Math.sin(t * 3) * 0.02;
+        c.save(); c.globalAlpha = out; c.translate(W / 2, Math.min(H - 60, cy + D * 0.28)); c.scale(pop, pop); c.textAlign = 'center'; c.textBaseline = 'middle';
+        c.font = '700 13px Fredoka, system-ui, sans-serif'; c.fillStyle = '#bff8ff'; c.fillText('DIE ZEIT BEKOMMT RISSE', 0, -22);
+        const fs = Math.min(36, W / 11); c.font = `700 ${fs}px Fredoka, system-ui, sans-serif`;
+        c.lineWidth = 6; c.strokeStyle = 'rgba(40,10,80,0.85)'; c.strokeText('Zeitsprung möglich!', 0, 6); c.fillStyle = '#fff'; c.fillText('Zeitsprung möglich!', 0, 6);
+        c.font = '600 14px Fredoka, system-ui, sans-serif'; c.lineWidth = 4; const sub = '💠 +' + J.fmtNum(f.n) + ' Zeitsplitter warten im Tab „Zeitsprung“';
+        c.strokeText(sub, 0, 36); c.fillStyle = '#e0c8ff'; c.fillText(sub, 0, 36);
+        c.restore();
+      }
+    }
+    // Kleiner Strudel am Himmel, solange ein Zeitsprung möglich ist
+    function drawPortal(v) {
+      if (!v.canJump || v.riftFx || v.rocket) return;
+      const [cx, cy] = riftCenter(v), R = 13 + Math.sin(v.time * 2) * 1.5;
+      c.save(); c.globalAlpha = 0.75; swirl(cx, cy, R, v.time, 1); c.restore();
+    }
+
     // ---------- Siegesshow (1.000 km) ----------
     function drawWinFx(v) {
       const f = v.winFx; if (!f) return;
@@ -1153,6 +1254,7 @@
       if (goalX < W - 10) flag(goalX, gy, '#ffd23f', 'Ziel ' + J.fmtKm(J.P.goal), 60);
       if (v.record > 0) { const rx = v.x0 + v.record * v.scale; if (rx < W - 10) flag(rx, gy, '#ff7a3d', 'Rekord', 64); }
       if (!v.chal) v.obstacles.forEach(o => drawObstacle(v, o));
+      drawPortal(v);
       drawWreckage(v);
       drawEvent(v);
       drawChallenge(v);
@@ -1198,8 +1300,9 @@
       } else {
         drawCannon(v, cx, gy, v.age, v.angle, v.recoil, v.cur);
         drawAddons(v, cx, gy, v.age, v.angle, v.cur);
-        drawPlayer(v, v.playerX, gy, v.age, v.time, v.pose, (v.skins || {})[v.age], v.act);
+        if (!v.hidePlayer) drawPlayer(v, v.playerX, gy - (v.playerY || 0), v.age, v.time, v.walking ? 'walk' : v.pose, (v.skins || {})[v.age], v.act);
       }
+      drawRocket(v);
       if (v.flash > 0) {
         c.fillStyle = `rgba(255,220,120,${v.flash})`; c.beginPath(); c.arc(ballOrigin.x, ballOrigin.y, 18 * v.flash + 6, 0, TAU); c.fill();
       }
@@ -1236,6 +1339,7 @@
       drawEventIntro(v);
       drawAgeFx(v);
       drawWinFx(v);
+      drawRift(v);
       // Feuerwerk-Funken über dem Overlay
       if (v.ageFx || v.winFx) v.parts.forEach(p => { if (!p.spark) return; c.globalAlpha = Math.max(0, Math.min(1, p.life)); c.fillStyle = p.col; c.beginPath(); c.arc(p.x, p.y, p.r, 0, TAU); c.fill(); });
       c.globalAlpha = 1;
@@ -1243,7 +1347,7 @@
       drawBar(v);
     }
 
-    return { resize, draw, muzzle, partColor, previewPlayer, drawShrine };
+    return { resize, draw, muzzle, partColor, previewPlayer, drawShrine, rocketPos };
   }
 
   root.makeRenderer = makeRenderer;

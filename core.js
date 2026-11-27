@@ -165,16 +165,24 @@
     { id: 'ader',    br: 'Wirtschaft', icon: '💰', name: 'Goldader',          max: 10, base: 2, eff: l => '+' + pc(P.wsAder * l) + ' % Gold' },
     { id: 'haende',  br: 'Wirtschaft', icon: '👷', name: 'Fleißige Hände',    max: 8,  base: 3, eff: l => 'Arbeiter +' + pc(P.wsHaende * l) + ' % schneller' },
     { id: 'schlag',  br: 'Wirtschaft', icon: '⛏️', name: 'Kräftige Schläge',  max: 6,  base: 2, eff: l => '+' + pc(P.wsSchlag * l) + ' % Abbau pro Klick' },
+    { id: 'daumen',  br: 'Wirtschaft', icon: '🌾', name: 'Grüner Daumen',     max: 6,  base: 4, eff: l => 'Farm-Ernte +' + pc(P.wsDaumen * l) + ' %' },
     { id: 'lauf',    br: 'Kanone',     icon: '🎯', name: 'Erbstück-Lauf',     max: 10, base: 3, eff: l => '+' + pc(P.wsLauf * l) + ' % Reichweite' },
     { id: 'kugel',   br: 'Kanone',     icon: '💥', name: 'Zeitgehärtete Kugeln', max: 10, base: 3, eff: l => '+' + pc(P.wsKugel * l) + ' % Schaden' },
+    { id: 'krit',    br: 'Kanone',     icon: '🎯', name: 'Scharfes Auge',     max: 5,  base: 4, eff: l => 'Kritische Treffer +' + pc(P.wsKrit * l) + ' % Schaden' },
+    { id: 'vogel',   br: 'Kanone',     icon: '🐦', name: 'Vogelflüsterer',    max: 5,  base: 3, eff: l => 'Vogel-Schub +' + pc(P.wsVogel * l) + ' %' },
     { id: 'hand',    br: 'Kanone',     icon: '🟩', name: 'Ruhige Hand',       max: 5,  base: 4, eff: l => 'Grüne Zone +' + 2 * l + ' Punkte in jedem Zeitalter' },
     { id: 'stern',   br: 'Kanone',     icon: '⭐', name: 'Sternenfänger',     max: 3,  base: 4, eff: l => '+' + l + ' Sterne pro Schuss' },
     { id: 'kapital', br: 'Erbe',       icon: '🪙', name: 'Startkapital',      max: 5,  base: 3, eff: l => 'Start mit ' + startGold(l) + ' Gold' },
     { id: 'stamm',   br: 'Erbe',       icon: '🧑‍🔧', name: 'Stammarbeiter',     max: 5,  base: 6, eff: l => '+' + l + ' Arbeiter in jeder freigeschalteten Ressource' },
     { id: 'kiste',   br: 'Erbe',       icon: '🔨', name: 'Werkzeugkiste',     max: 3,  base: 6, eff: l => 'Werkzeug startet auf Stufe ' + (1 + l) },
     { id: 'plaene',  br: 'Erbe',       icon: '📜', name: 'Alte Pläne',        max: 6,  base: 5, eff: l => 'Kanonen-Upgrades −' + pc(P.wsPlaene * l) + ' % Kosten' },
+    { id: 'vorrat',  br: 'Erbe',       icon: '💣', name: 'Munitionsvorrat',   max: 5,  base: 4, eff: l => 'Start mit ' + 2 * l + ' Stück jeder Munition, Munition −' + 10 * l + ' %' },
+    { id: 'segen',   br: 'Erbe',       icon: '⛩️', name: 'Schreinsegen',      max: 5,  base: 5, eff: l => 'Schreine wirken +' + pc(P.wsSegen * l) + ' % stärker' },
     { id: 'linse',   br: 'Zeit',       icon: '🔮', name: 'Splitterlinse',     max: 10, base: 5, eff: l => '+' + pc(P.wsLinse * l) + ' % Zeitsplitter' },
     { id: 'naechte', br: 'Zeit',       icon: '🌙', name: 'Lange Nächte',      max: 4,  base: 4, eff: l => 'Offline-Limit ' + (8 + 4 * l) + ' h' },
+    { id: 'glueck',  br: 'Zeit',       icon: '🍀', name: 'Glückskind',        max: 4,  base: 4, eff: l => 'Gute Ereignisse ' + (100 + 50 * l) + ' % so häufig' },
+    { id: 'trainer', br: 'Zeit',       icon: '🏋️', name: 'Trainingseifer',    max: 4,  base: 5, eff: l => 'Trainings-Boni +' + pc(P.wsTrainer * l) + ' %' },
+    { id: 'meister', br: 'Zeit',       icon: '🏆', name: 'Challenge-Meister', max: 5,  base: 4, eff: l => 'Challenge-Boni +' + pc(P.wsMeister * l) + ' %' },
     { id: 'blick',   br: 'Zeit',       icon: '🔭', name: 'Weitblick',         max: 4,  base: 3, eff: l => 'Flugbahn-Vorschau +' + 5 * l + ' %' },
   ];
   function pc(x) { return Math.round(x * 100); }
@@ -461,6 +469,6 @@
     return nf(n / 1e9, 2) + ' Mrd.';
   }
 
-  root.JS = { AMMO, AMMO_PACK, ammoCost, buyAmmo, takeAmmo, goldUnit, SHRINE, shrineSum, shrineOffers, shrineCost, buyShrine, rerollCost, rerollShrines, shrineText, trainBonus, trainReward, WORKSHOP, wsList, wsBuy, wsCost, splitterFor, jumpPreview, jumpUnlocked, rebirth, migrate, newMeta, startGold, workers, P, LINES, AGES, MATS, OBS, CHALLENGES, newState, stats, quality, shotGold, obsState, obsDone, nextBlocking, ageObstaclesDone,
+  root.JS = { W, AMMO, AMMO_PACK, ammoCost, buyAmmo, takeAmmo, goldUnit, SHRINE, shrineSum, shrineOffers, shrineCost, buyShrine, rerollCost, rerollShrines, shrineText, trainBonus, trainReward, WORKSHOP, wsList, wsBuy, wsCost, splitterFor, jumpPreview, jumpUnlocked, rebirth, migrate, newMeta, startGold, workers, P, LINES, AGES, MATS, OBS, CHALLENGES, newState, stats, quality, shotGold, obsState, obsDone, nextBlocking, ageObstaclesDone,
     upgCost, upgList, canAfford, buy, tapPower, upgradesDone, canAgeUp, ageUp, resInfo, tap, resAction, tickRes, canTrade, tradeRate, trade, neededMats, offline, bonusText, chBonus, chalFor, ageRange, partLevel, partPos, fmtKm, fmtNum };
 })(typeof window !== 'undefined' ? window : globalThis);

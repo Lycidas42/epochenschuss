@@ -4,7 +4,7 @@
   const J = window.JS;
   const $ = q => document.querySelector(q);
   const SAVE = 'jushoot-v2', SCORES = 'jushoot-scores';
-  const VERSION = '0.3.0'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
+  const VERSION = '0.4.0'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
   const G = 9.81e-3; // km/s²
 
   // ---------- Speichern ----------
@@ -63,6 +63,16 @@
     view.playerX = shootX(); // der Schütze bleibt an der Kanone stehen
   }
   const shootX = () => view.x0 - 30;
+  // Schütze während des Zeitsprungs: läuft zur Rakete, klettert die Leiter hoch, verschwindet darin
+  function jumpPlayer() {
+    view.playerY = 0; view.hidePlayer = false; view.playerX = shootX();
+    const r = view.rocket; if (!r) return;
+    const t = r.t, tx = r.rx - 16;
+    if (t > JT.door) view.playerX = shootX() + (tx - shootX()) * Math.min(1, (t - JT.door) / (JT.walk - JT.door));
+    if (t > JT.walk) { view.playerX = tx + 4; view.playerY = Math.min(1, (t - JT.walk) / (JT.climb - JT.walk)) * 52; }
+    view.hidePlayer = t > JT.climb;
+    view.walking = t > JT.door && t < JT.climb;
+  }
   const rad = d => d * Math.PI / 180;
 
   function syncObstacles() {
@@ -150,9 +160,10 @@
     let ev = EVENTS.find(e => e.type === force);
     if (!ev) {
       if (dev.noEvents || chal || s.shots < 3 || eventCool > 0 || Math.random() > 0.35) { eventCool = Math.max(0, eventCool - 1); return; }
-      const tot = EVENTS.reduce((a, e) => a + e.w, 0);
+      const luck = 1 + 0.5 * J.W(s, 'glueck'), wt = e => e.w * (e.good ? luck : 1); // Glückskind: gute Ereignisse häufiger
+      const tot = EVENTS.reduce((a, e) => a + wt(e), 0);
       let r = Math.random() * tot; ev = EVENTS[0];
-      for (const e of EVENTS) { r -= e.w; if (r <= 0) { ev = e; break; } }
+      for (const e of EVENTS) { r -= wt(e); if (r <= 0) { ev = e; break; } }
     }
     const st = J.stats(s), lim = st.range;
     const shots = 3 + Math.floor(Math.random() * 3);
@@ -408,12 +419,12 @@
     }
     const total = (J.shotGold(s, d) + shot.starGold + shot.birdGold + shot.bonus) * (shot.ammo === 'gold' ? 3 : 1);
     s.gold += total; s.shots++;
-    const wasOpen = J.jumpUnlocked(s);
+    const wasOpen = J.jumpUnlocked(s), couldJump = J.jumpPreview(s).can;
     const newRec = d > s.runRec;
     if (newRec) s.runRec = d;
     s.record = Math.max(s.record, d);
     view.record = s.runRec;
-    if (!wasOpen && J.jumpUnlocked(s)) setTimeout(() => toast('💠 Die Zeit bekommt Risse … Neuer Bereich: <b>Zeitsprung</b>'), 1600);
+    if (!couldJump && J.jumpPreview(s).can) setTimeout(() => startRift(!wasOpen), 1400); // große Animation: Zeitsprung ist jetzt möglich
     floatText(Math.min(view.W - 70, Math.max(70, lx)), view.groundY - 60, '+' + J.fmtNum(total) + ' Gold' + (newRec ? '  Neuer Rekord!' : ''), '#ffd23f', 18);
     if (d >= J.P.goal && !s.won) { s.won = true; s.st.winShots = s.shots; setTimeout(startWinShow, 900); }
     save(); renderAll();
@@ -496,7 +507,7 @@
     view.time += dt; view.dt = dt; phaseT += dt;
     const got = J.tickRes(s, dt);
     if (stageView === 'res') for (const id in got) { const i = J.MATS.findIndex(m => m.id === id); if (tiles[i]) tiles[i].pop(i, got[id], true); }
-    view.playerX = shootX(); view.act = Math.max(0, (view.act || 0) - dt * 2.2); if (view.pose === 'fire' && view.act <= 0) view.pose = 'idle';
+    jumpPlayer(); view.act = Math.max(0, (view.act || 0) - dt * 2.2); if (view.pose === 'fire' && view.act <= 0) view.pose = 'idle';
     if (phase === 'aim' && view.bar) { view.bar.t += dt * J.stats(s).barSpeed; const f = view.bar.t % 2; view.bar.pos = f < 1 ? f : 2 - f; }
     if (chal && chal.targets) chal.targets.forEach(t => { if (t.kind === 'lift') { t.y = t.by + (t.hi - t.by) * (0.5 + 0.5 * Math.sin(view.time * 1.25 + t.ph)); return; } if (t.kind) return; if (!t.hit) { t.x = t.bx * (1 + (chal.c.move || 0) * Math.sin(view.time * 0.9 + t.ph)); if (chal.c.moveY) t.y = t.by * (1 + chal.c.moveY * Math.sin(view.time * 1.6 + t.ph * 2)); } });
     if (chal && chal.ground && chal.ground.move && !(phase === 'land' && shot && shot.inChal)) { const g = chal.ground; g.x = g.at * (1 + g.move * Math.sin(view.time * g.sp + g.ph)); }
@@ -527,6 +538,8 @@
     if (view.event) { const e = view.event; if (e.pop) e.pop = Math.max(0, e.pop - dt * 1.2); if (e.snap) e.snap = Math.max(0, e.snap - dt * 0.8); }
     if (view.goodFx) { view.goodFx.t += rdt; if (view.goodFx.t > 0.8) view.goodFx = null; }
     if (view.intro) { view.intro.t += dt; if (view.intro.t > 2.4) view.intro = null; }
+    if (view.riftFx) { view.riftFx.t += rdt; if (view.riftFx.t > 5) view.riftFx = null; }
+    view.canJump = phase !== 'jump' && !chal && J.jumpPreview(s).can;
     if (phase !== 'flight' && view.trail.length) { view.trailA -= dt * 0.7; if (view.trailA <= 0) view.trail = []; } // alte Flugspur blendet aus
     // Fall-Animation: Teile auf zerstörten Unterlagen rutschen nach unten
     J.OBS.forEach(o => { const ys = obsYs[o.id]; if (!ys) return; o.parts.forEach((p, i) => { const tgt = J.partLevel(o, s.oh[o.id], i); ys[i] = ys[i] < tgt ? tgt : Math.max(tgt, ys[i] - o.u * 14 * dt); }); });
@@ -663,10 +676,10 @@
       <div class="muted small">${m.jumps ? `Zeitsprünge: ${m.jumps} · insgesamt verdient: ${J.fmtNum(m.earned)}` : 'Noch kein Zeitsprung. Splitter gibt es nur durch einen Zeitsprung.'}</div></div>`;
     h += `<div class="card"><b>Zeitsprung jetzt: +${J.fmtNum(pv.n)} 💠</b>
       <div class="muted">Rekord in diesem Lauf: ${J.fmtKm(pv.km)}${pv.win ? ` · inkl. ${pv.win} Bonus für die ersten 1.000 km` : ''}. Nächster Splitter bei ${J.fmtKm(pv.nextKm)}.</div>
-      <div class="keep"><div><b>Verlierst du</b><ul><li>Gold &amp; Ressourcen</li><li>Zeitalter &amp; Kanonen-Upgrades</li><li>Arbeiter &amp; Werkzeug</li><li>Hindernisse heilen</li></ul></div>
-      <div><b>Behältst du</b><ul><li>Zeitsplitter &amp; Zeitwerkstatt</li><li>Challenge-Boni</li><li>Bestwerte &amp; Statistik</li></ul></div></div>
+      <div class="keep"><div><b>Verlierst du</b><ul><li>Gold &amp; Ressourcen</li><li>Zeitalter &amp; Kanonen-Upgrades</li><li>Arbeiter &amp; Werkzeug</li><li>Munition &amp; Schreine</li><li>Hindernisse heilen</li></ul></div>
+      <div><b>Behältst du</b><ul><li>Zeitsplitter &amp; Zeitwerkstatt</li><li>Challenge-Boni</li><li>Trainings-Boni</li><li>Bestwerte &amp; Statistik</li></ul></div></div>
       <button class="btn jump" data-jumphold ${pv.can && phase === 'idle' && !chal ? '' : 'disabled'}><i></i><span>⏳ Gedrückt halten: Zeitsprung</span></button>
-      <div class="muted small" style="margin-top:6px">Du startest wieder in der Steinzeit. Je weiter du kommst, desto mehr Splitter, aber mit abnehmendem Zuwachs.</div></div>`;
+      <div class="muted small" style="margin-top:6px">Dein Schütze steigt in eine Rakete und fliegt zurück an den Anfang der Zeit. Du startest wieder in der Steinzeit. Je weiter du kommst, desto mehr Splitter, aber mit abnehmendem Zuwachs.</div></div>`;
     h += '<h4 class="sub">Zeitwerkstatt (dauerhaft)</h4>';
     let br = '';
     J.wsList(s).forEach(x => {
@@ -678,16 +691,40 @@
     });
     $('#tab-jump').innerHTML = h;
   }
+  // Zeitriss: große Animation, sobald im Lauf ein Zeitsprung möglich wird
+  function startRift(first) {
+    if (phase === 'jump' || phase === 'win') return;
+    if (stageView === 'cannon') { view.riftFx = { t: 0, n: J.jumpPreview(s).n, first }; view.shake = 0.5; }
+    [0, 0.25, 0.5, 1.2, 1.6].forEach((d, k) => setTimeout(() => sfx(k < 3 ? 'bad' : k === 3 ? 'up' : 'perfect'), d * 1000));
+    setTimeout(() => toast('💠 Die Zeit bekommt Risse … ' + (first ? 'Neuer Bereich: <b>Zeitsprung</b>' : '<b>Zeitsprung</b> ist wieder möglich')), stageView === 'cannon' ? 4200 : 0);
+    renderHud();
+  }
+  // Zeitsprung als Show: Rakete landet, der Schütze steigt ein, Countdown, Start, sie verschwindet als Punkt am Himmel
+  const JT = { land: 1.2, door: 1.5, walk: 2.6, climb: 3.2, count: 4.3, fly: 6.9, flash: 7.4, done: 8.2 };
   function doJump() {
     if (phase !== 'idle' || chal || !J.jumpPreview(s).can) return;
     if (stageView !== 'cannon') setStageView('cannon');
-    phase = 'jump'; phaseT = 0; view.bar = null; updateFire(); sfx('up');
-    const m = R.muzzle(s.age, s.angle, s.cur);
-    for (let k = 0; k < 4; k++) setTimeout(() => { burst(view.x0 + m.x, view.groundY + m.y, k % 2 ? '#b58cff' : '#4be3ff', 26); view.shake = 0.4; sfx('star'); }, k * 180);
-    const fxEl = $('#jumpFx'); fxEl.hidden = true; void fxEl.offsetWidth; fxEl.hidden = false;
+    phase = 'jump'; phaseT = 0; view.bar = null; view.riftFx = null; updateFire(); zoom = 1;
+    view.rocket = { t: 0, rx: Math.min(view.W - 40, view.x0 + 70), said: {} };
+    sfx('boost');
   }
   function jumpStep() {
-    if (phaseT < 0.85) return;
+    const r0 = view.rocket; if (!r0) return;
+    const t = r0.t = phaseT, gy = view.groundY, say = (k, f) => { if (!r0.said[k]) { r0.said[k] = 1; f(); } };
+    if (t < JT.land) { if (Math.random() < 0.8) { const y = gy - 90 * (1 - Math.min(1, t / JT.land)) ** 2 * 3; view.parts.push({ x: r0.rx + (Math.random() - 0.5) * 8, y: y + 8, vx: (Math.random() - 0.5) * 40, vy: 80 + Math.random() * 60, r: 3 + Math.random() * 3, life: 0.5, col: Math.random() < 0.5 ? '#ffb347' : 'rgba(200,200,200,0.6)', dust: Math.random() < 0.5 }); } }
+    else say('landed', () => { view.shake = 0.4; burst(r0.rx, gy - 4, '#c9a46a', 18); sfx('hit'); });
+    if (t > JT.door) say('door', () => sfx('click'));
+    if (t > JT.climb) say('in', () => { sfx('click'); floatText(r0.rx, gy - 150, 'Einsteigen!', '#7ff6ff', 16); });
+    [3, 2, 1].forEach((n, k) => { if (t > JT.climb + 0.15 + k * 0.33) say('c' + n, () => { floatText(r0.rx + 40, gy - 120, String(n), '#ffffff', 30); sfx('tap'); }); });
+    if (t > JT.count) {
+      say('go', () => { floatText(r0.rx + 40, gy - 130, 'START!', '#ffd23f', 30); sfx('up'); view.shake = 0.8; for (let k = 0; k < 16; k++) view.parts.push({ x: r0.rx + (Math.random() - 0.5) * 50, y: gy - 6, vx: (Math.random() - 0.5) * 160, vy: -10 - Math.random() * 40, r: 8 + Math.random() * 10, life: 1.6, col: 'rgba(225,225,225,0.6)', dust: true }); });
+      const p = R.rocketPos(view, r0);
+      if (p.s > 0.08 && Math.random() < 0.95) view.parts.push({ x: p.x + (Math.random() - 0.5) * 6 * p.s, y: p.y + 30 * p.s, vx: (Math.random() - 0.5) * 30, vy: 20, r: (3 + Math.random() * 4) * Math.max(0.3, p.s), life: 0.9, col: Math.random() < 0.35 ? '#ffb347' : 'rgba(230,230,230,0.55)', dust: true });
+    }
+    if (t > JT.fly) say('dot', () => sfx('star'));
+    if (t > JT.flash) say('flash', () => { const fxEl = $('#jumpFx'); fxEl.hidden = true; void fxEl.offsetWidth; fxEl.hidden = false; sfx('up'); });
+    if (t < JT.done) return;
+    view.rocket = null;
     const r = J.rebirth(s); if (!r) { phase = 'idle'; updateFire(); return; }
     s = r.s;
     for (const k in obsYs) delete obsYs[k]; for (const k in hitMap) delete hitMap[k];
@@ -975,6 +1012,8 @@
     pointers.set(e.pointerId, e);
     if (phase === 'aim') { release(); return; }
     if (phase === 'win' && view.winFx && view.winFx.t > 2.5) { endWinShow(); return; }
+    if (phase === 'jump' && phaseT > 0.5 && phaseT < JT.flash) { phaseT = JT.flash - 0.01; return; } // Antippen überspringt die Show
+    if (view.riftFx && view.riftFx.t > 1) view.riftFx.t = Math.max(view.riftFx.t, 4.4);
     if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch0 = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); zoom0 = zoom; dragging = false; return; }
     if (phase === 'idle') { dragging = true; canvas.setPointerCapture(e.pointerId); aimAt(e); }
   });
@@ -1123,6 +1162,6 @@
   if (away && away.dt > 30) offlineToast(away);
   if (s.shots === 0) toast('Tippe <b>Laden</b>, dann im <b style="color:#5ee07a">grünen Bereich</b> auslösen. Triff jedes Teil der Hindernisse.');
   // Nur in der Entwickler-Version: Zugriff für automatische Tests in der Konsole
-  if (DEV) window.ES = { get s() { return s; }, view, J, startChallenge, setStageView, onFire, release, setAngle, setPower, jumpToAge, doJump, renderAll, get phase() { return phase; } };
+  if (DEV) window.ES = { get s() { return s; }, view, J, startChallenge, setStageView, onFire, release, startRift, setAngle, setPower, jumpToAge, doJump, renderAll, get phase() { return phase; } };
   requestAnimationFrame(frame);
 })();
