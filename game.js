@@ -4,7 +4,7 @@
   const J = window.JS;
   const $ = q => document.querySelector(q);
   const SAVE = 'jushoot-v2', SCORES = 'jushoot-scores';
-  const VERSION = '0.4.0'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
+  const VERSION = '0.5.0'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
   const G = 9.81e-3; // km/s²
 
   // ---------- Speichern ----------
@@ -437,9 +437,45 @@
     spawnStars(); updateFire(); computePreview();
   }
 
+  // ---------- Trainingszentrum: ein Ziel nach dem anderen, jedes gibt zufällig +1 % Schaden, Reichweite oder Gold (dauerhaft) ----------
+  const TR_NAMES = ['Strohpuppe', 'Holzscheibe', 'Kistenstapel', 'Hohe Scheibe', 'Puppenpaar'];
+  function trainTarget() {
+    const st = J.stats(s), n = s.meta.train.n, R = st.range, at = R * (0.4 + 0.4 * Math.random()), u = at * 0.065;
+    const reach = x => (R * R - x * x) / (2 * R) * 0.55; // sicher erreichbare Höhe
+    const hp0 = st.dmg / st.trDmg * 2.5 * Math.pow(1.07, n), typ = n < 2 ? n : Math.floor(Math.random() * TR_NAMES.length);
+    let parts;
+    if (typ === 0) parts = [['dummy', 0, 0, 1, 2.4, -1, 1]];
+    else if (typ === 1) parts = [['wall', 0, 0, 0.5, 1.8, -1, 0.3], ['target', -0.35, 1.8, 1.2, 1.2, 0, 0.7]];
+    else if (typ === 2) parts = [['block', 0, 0, 1.3, 1.1, -1, 0.35], ['block', 0.15, 1.1, 1, 1, 0, 0.35], ['block', 0.3, 2.1, 0.8, 0.8, 1, 0.3]];
+    else if (typ === 3) { const y = Math.min(reach(at) / u - 1.4, 4 + Math.random() * 3); parts = [['target', 0, Math.max(1, y), 1.2, 1.2, -1, 1, true]]; }
+    else parts = [['dummy', 0, 0, 1, 2.4, -1, 0.5], ['dummy', 1.8, 0, 1, 2.4, -1, 0.5]];
+    const ps = parts.map(([kind, dx, y, w, h, on, f, post]) => ({ kind, x: at + dx * u, y: y * u, w: w * u, h: h * u, on, mv: null, hp: Math.max(1, hp0 * f), post: !!post }));
+    const o = { id: 'chal', age: s.age, at, u, parts: ps, name: TR_NAMES[typ], end: Math.max(...ps.map(p => p.x + p.w)), top: Math.max(...ps.map(p => p.y + p.h)) };
+    chal.tower = o; chal.hp = ps.map(p => p.hp); chal.hit = []; chal.ys = ps.map((p, i) => J.partLevel(o, chal.hp, i)); chal.c.name = o.name;
+  }
+  function startTraining() {
+    if (chal && !chal.train) endChallenge();
+    if (chal) return;
+    chal = { c: { id: 'train', type: 'tower', name: '', tries: Infinity }, used: 0, train: true, targets: null, ground: null };
+    trainTarget();
+    pausedEvent = view.event; view.intro = null;
+    view.chal = chal; view.event = null; view.stars = []; view.lastLand = null; view.trail = []; zoom = 1;
+    computePreview(); renderAll();
+    if (!s.meta.train.n) toast('🏋️ <b>Trainingszentrum</b>: Jedes zerstörte Ziel gibt dir dauerhaft +1 % Schaden, Reichweite oder Gold.');
+  }
+  function trainDone() {
+    const k = J.trainReward(s), name = { dmg: 'Schaden', range: 'Reichweite', gold: 'Gold' }[k], ic2 = { dmg: '🔥', range: '🌬️', gold: '💰' }[k];
+    const tb = J.trainBonus(s), f = (1 + 0.25 * J.W(s, 'trainer'));
+    chal.reward = { t: 0, text: ic2 + ' +' + (Math.round(f * 10) / 10).toString().replace('.', ',') + ' % ' + name, sub: 'Training gesamt: Schaden +' + pctN(tb.dmg) + ' · Reichweite +' + pctN(tb.range) + ' · Gold +' + pctN(tb.gold) };
+    sfx('up'); setTimeout(() => sfx('perfect'), 150); view.shake = 0.4; save(); renderHud();
+    setTimeout(() => { if (chal && chal.train && phase !== 'flight') { trainTarget(); chal.reward = null; computePreview(); } else if (chal && chal.train) chal.next = true; }, 1600);
+  }
+  const pctN = v => (Math.round(v * 1000) / 10).toString().replace('.', ',') + ' %';
+
   // ---------- Challenges ----------
   let pausedEvent = null;
   function startChallenge(id) {
+    if (chal && chal.train) setStageView('cannon');
     const c0 = J.CHALLENGES.find(x => x.id === id);
     if (!c0 || phase !== 'idle' || s.age < c0.minAge || s.ch[c0.id]) return;
     const c = J.chalFor(s, c0);
@@ -481,6 +517,7 @@
   }
   function landChallenge(d) {
     chal.used++;
+    if (chal.train) { if (chal.next) { chal.next = false; setTimeout(() => { if (chal && chal.train) { trainTarget(); chal.reward = null; } }, 600); } return; }
     const c = chal.c;
     const gx = chal.ground ? chal.ground.x : 0;
     const ok = c.type === 'ground' ? Math.abs(d - gx) <= c.w : c.type === 'tower' ? chal.hp.every(h => h <= 0) : chal.targets.every(t => t.hit);
@@ -493,7 +530,6 @@
     }
   }
 
-  function trainDone() { /* Trainingszentrum folgt */ }
   // ---------- Effekte ----------
   function floatText(x, y, text, col, size) { view.texts.push({ x, y, text, col, size, life: 1.6 }); }
   function burst(x, y, col, n) { for (let i = 0; i < n; i++) view.parts.push({ x, y, vx: (Math.random() - 0.5) * 220, vy: -Math.random() * 220, r: 2 + Math.random() * 2.5, life: 0.8 + Math.random() * 0.4, col }); }
@@ -538,6 +574,7 @@
     if (view.event) { const e = view.event; if (e.pop) e.pop = Math.max(0, e.pop - dt * 1.2); if (e.snap) e.snap = Math.max(0, e.snap - dt * 0.8); }
     if (view.goodFx) { view.goodFx.t += rdt; if (view.goodFx.t > 0.8) view.goodFx = null; }
     if (view.intro) { view.intro.t += dt; if (view.intro.t > 2.4) view.intro = null; }
+    if (chal && chal.reward) chal.reward.t += rdt;
     if (view.riftFx) { view.riftFx.t += rdt; if (view.riftFx.t > 5) view.riftFx = null; }
     view.canJump = phase !== 'jump' && !chal && J.jumpPreview(s).can;
     if (phase !== 'flight' && view.trail.length) { view.trailA -= dt * 0.7; if (view.trailA <= 0) view.trail = []; } // alte Flugspur blendet aus
@@ -546,9 +583,9 @@
     view.parts = view.parts.filter(p => p.life > 0);
     view.texts.forEach(t => { t.y -= 26 * dt; t.life -= dt; });
     view.texts = view.texts.filter(t => t.life > 0);
-    view.age = view.ageFx && view.ageFx.t < 1.1 ? view.ageFx.from : s.age; view.angle = s.angle; view.phase = phase; view.cur = s.cur; view.dev = dev; view.skins = s.meta.skins;
+    view.age = view.ageFx && view.ageFx.t < 1.1 ? view.ageFx.from : s.age; view.angle = s.angle; view.phase = phase; view.cur = s.cur; view.dev = dev; view.skins = s.meta.skins; view.trainN = s.meta.train.n;
     if (dev.info) { const st = J.stats(s); view.info = [`${Math.round(fps)} fps · Zoom ×${zoom.toFixed(2)} · ${Math.round(view.scale)} px/km`, `Reichweite ${J.fmtKm(st.range)} · bei ${s.angle}°/${s.power} %: ${J.fmtKm(reachNow())}`, `Schaden ${J.fmtNum(st.dmg)} · Zone ${Math.round(st.zone * 100)} % · Vorschau ${Math.round(st.preview * 100)} %`, `Schüsse ${s.shots} · Ereignis ${view.event ? view.event.type : '–'}`]; } else view.info = null;
-    if (stageView === 'cannon') R.draw(view);
+    if (onCanvas()) R.draw(view);
     if (stageView === 'res') drawResStage(dt);
     uiT += dt; saveT += dt;
     if (uiT > 0.25) { uiT = 0; tickUI(); }
@@ -694,9 +731,9 @@
   // Zeitriss: große Animation, sobald im Lauf ein Zeitsprung möglich wird
   function startRift(first) {
     if (phase === 'jump' || phase === 'win') return;
-    if (stageView === 'cannon') { view.riftFx = { t: 0, n: J.jumpPreview(s).n, first }; view.shake = 0.5; }
+    if (onCanvas()) { view.riftFx = { t: 0, n: J.jumpPreview(s).n, first }; view.shake = 0.5; }
     [0, 0.25, 0.5, 1.2, 1.6].forEach((d, k) => setTimeout(() => sfx(k < 3 ? 'bad' : k === 3 ? 'up' : 'perfect'), d * 1000));
-    setTimeout(() => toast('💠 Die Zeit bekommt Risse … ' + (first ? 'Neuer Bereich: <b>Zeitsprung</b>' : '<b>Zeitsprung</b> ist wieder möglich')), stageView === 'cannon' ? 4200 : 0);
+    setTimeout(() => toast('💠 Die Zeit bekommt Risse … ' + (first ? 'Neuer Bereich: <b>Zeitsprung</b>' : '<b>Zeitsprung</b> ist wieder möglich')), onCanvas() ? 4200 : 0);
     renderHud();
   }
   // Zeitsprung als Show: Rakete landet, der Schütze steigt ein, Countdown, Start, sie verschwindet als Punkt am Himmel
@@ -781,11 +818,18 @@
         <div class="muted small">Kurs: ${String(rate.toFixed(1)).replace('.', ',')} ${esc(m.name)} = 1 ${esc(J.MATS[j].name)}</div>`; }).join('');
     modal(`<h2>⇄ ${esc(m.name)} tauschen</h2><p class="muted">${esc(m.name)} brauchst du in der ${esc(J.AGES[s.age].name)} nicht mehr. Tausche deinen Vorrat (${J.fmtNum(have)}) gegen eine Ressource, die du jetzt brauchst. Der Händler behält die Hälfte als Gebühr.</p>${opts}<button class="btn sec" data-close style="width:100%;margin-top:10px">Abbrechen</button>`);
   }
+  let farmR = null; function openFarm() {}
+  const onCanvas = () => stageView === 'cannon' || stageView === 'train';
   function setStageView(v) {
+    if (v === 'train' && stageView !== 'train' && phase !== 'idle') { toast('Erst den Schuss abwarten'); return; }
+    if (stageView === 'train' && v !== 'train') { if (phase === 'aim') { phase = 'idle'; view.bar = null; updateFire(); } if (chal && chal.train) endChallenge(); }
     stageView = v;
     document.querySelectorAll('.viewsw button').forEach(b => b.classList.toggle('on', b.dataset.view === v));
-    $('#cannonView').hidden = v !== 'cannon'; $('#resView').hidden = v !== 'res';
-    if (v === 'cannon') layout(); else { if (resAge !== s.age || !tiles.length) buildResGrid(); tiles.forEach(t => t.resize()); updateResGrid(true); }
+    $('#cannonView').hidden = !onCanvas(); $('#resView').hidden = v !== 'res'; $('#farmView').hidden = v !== 'farm';
+    if (onCanvas()) layout();
+    if (v === 'train') startTraining();
+    if (v === 'res') { if (resAge !== s.age || !tiles.length) buildResGrid(); tiles.forEach(t => t.resize()); updateResGrid(true); }
+    if (v === 'farm') openFarm();
   }
   function drawResStage(dt) {
     tiles.forEach((rr, i) => { const r = s.res[i]; rr.draw({ i, t: view.time, dt, wk: r.wk, tool: r.tool, p: r.p, count: s.mats[J.MATS[i].id], avail: s.age >= J.MATS[i].age, lockName: J.AGES[J.MATS[i].age].name, cycle: J.P.cycle }); });
@@ -809,7 +853,7 @@
       const done = !!s.ch[c.id], open = s.age >= c.minAge;
       h += `<div class="card upg ${done ? 'done-soft' : ''}"><div class="info"><div class="name">${done ? '✅ ' : ''}${esc(c.name)}</div>
         <div class="muted">${esc(c.desc)}</div><div class="costs"><span class="cost">Bonus: ${J.bonusText(c.bonus)}</span>${open ? '' : `<span class="cost miss">ab ${esc(J.AGES[c.minAge].name)}</span>`}</div></div>
-        ${done ? '<span class="cost ok">Geschafft ✓</span>' : `<button class="btn" data-chal="${c.id}" ${open && phase === 'idle' && !chal ? '' : 'disabled'}>Starten</button>`}</div>`;
+        ${done ? '<span class="cost ok">Geschafft ✓</span>' : `<button class="btn" data-chal="${c.id}" ${open && phase === 'idle' && (!chal || chal.train) ? '' : 'disabled'}>Starten</button>`}</div>`;
     });
     $('#tab-chal').innerHTML = h;
   }
@@ -876,7 +920,7 @@
   function renderAmmoBar() {
     const el = $('#ammoBar'), have = J.AMMO.filter(a => !a.price || (s.ammo[a.id] || 0) > 0);
     const h = have.length > 1 ? have.map(a => `<button class="ammo-chip ${s.ammoSel === a.id ? 'on' : ''}" data-sel="${a.id}" title="${esc(a.name)}: ${esc(a.desc)}">${a.icon} <span>${a.price ? s.ammo[a.id] : '∞'}</span></button>`).join('') : '';
-    if (h !== renderAmmoBar.h) { renderAmmoBar.h = h; el.innerHTML = h; el.hidden = !h; if (stageView === 'cannon') layout(); }
+    if (h !== renderAmmoBar.h) { renderAmmoBar.h = h; el.innerHTML = h; el.hidden = !h; if (onCanvas()) layout(); }
   }
   $('#ammoBar').addEventListener('click', e => {
     const b = e.target.closest('[data-sel]'); if (!b) return;
@@ -1144,7 +1188,7 @@
     closeModal(); save(); sig = ''; renderAll();
   });
 
-  window.addEventListener('resize', () => { if (stageView === 'cannon') layout(); else tiles.forEach(t => t.resize()); });
+  window.addEventListener('resize', () => { if (onCanvas()) layout(); else if (stageView === 'res') tiles.forEach(t => t.resize()); else if (stageView === 'farm' && farmR) farmR.resize(); });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) save();
     else { const r = J.offline(s, Date.now()); if (r && r.dt > 30) offlineToast(r); }
@@ -1162,6 +1206,6 @@
   if (away && away.dt > 30) offlineToast(away);
   if (s.shots === 0) toast('Tippe <b>Laden</b>, dann im <b style="color:#5ee07a">grünen Bereich</b> auslösen. Triff jedes Teil der Hindernisse.');
   // Nur in der Entwickler-Version: Zugriff für automatische Tests in der Konsole
-  if (DEV) window.ES = { get s() { return s; }, view, J, startChallenge, setStageView, onFire, release, startRift, setAngle, setPower, jumpToAge, doJump, renderAll, get phase() { return phase; } };
+  if (DEV) window.ES = { get s() { return s; }, view, J, startChallenge, setStageView, onFire, release, startRift, trainDone: () => trainDone(), setAngle, setPower, jumpToAge, doJump, renderAll, get phase() { return phase; } };
   requestAnimationFrame(frame);
 })();

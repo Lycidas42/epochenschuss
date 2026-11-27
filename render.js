@@ -319,6 +319,22 @@
         c.save(); c.setLineDash([2, 3]); c.strokeStyle = 'rgba(0,0,0,0.25)'; c.lineWidth = 1; c.beginPath(); c.moveTo(px + pw / 2, gy); c.lineTo(px + pw / 2, py - ph); c.stroke(); c.restore();
         c.beginPath(); c.rect(px, py, pw, ph);
         if (out) c.stroke(); else { c.fillStyle = col; c.fill(); c.fillStyle = 'rgba(255,255,255,0.4)'; c.fillRect(px + pw * 0.15, py + 2, Math.max(1, pw * 0.15), ph - 4); c.fillStyle = '#555'; [0.2, 0.8].forEach(f => { c.beginPath(); c.arc(px + pw / 2, py + ph * f, Math.max(1, pw * 0.1), 0, TAU); c.fill(); }); }
+      } else if (k === 'dummy') { // Strohpuppe am Pfahl
+        const cx = px + pw / 2;
+        c.strokeStyle = out ? 'rgba(255,255,255,0.5)' : '#5a3a1f'; c.lineWidth = Math.max(1.5, pw * 0.12); c.beginPath(); c.moveTo(cx, py + ph); c.lineTo(cx, py + ph * 0.2); c.moveTo(px - pw * 0.1, py + ph * 0.38); c.lineTo(px + pw * 1.1, py + ph * 0.38); c.stroke();
+        if (out) return;
+        c.fillStyle = '#d9b45a'; rr(c, px + pw * 0.12, py + ph * 0.3, pw * 0.76, ph * 0.45, pw * 0.2); c.fill();
+        c.strokeStyle = 'rgba(120,80,20,0.6)'; c.lineWidth = 1; for (let q = 1; q < 4; q++) { c.beginPath(); c.moveTo(px + pw * 0.15, py + ph * (0.3 + q * 0.11)); c.lineTo(px + pw * 0.85, py + ph * (0.32 + q * 0.11)); c.stroke(); }
+        c.fillStyle = '#e8cf7a'; c.beginPath(); c.arc(cx, py + ph * 0.17, pw * 0.3, 0, TAU); c.fill();
+        c.fillStyle = '#c0392b'; c.beginPath(); c.arc(cx, py + ph * 0.5, pw * 0.16, 0, TAU); c.fill(); c.fillStyle = '#fff'; c.beginPath(); c.arc(cx, py + ph * 0.5, pw * 0.08, 0, TAU); c.fill();
+        c.fillStyle = '#3b2b1a'; c.fillRect(cx - pw * 0.14, py + ph * 0.14, Math.max(1, pw * 0.07), Math.max(1, pw * 0.07)); c.fillRect(cx + pw * 0.07, py + ph * 0.14, Math.max(1, pw * 0.07), Math.max(1, pw * 0.07));
+      } else if (k === 'target') { // runde Zielscheibe, bei hohen Scheiben auf einem Pfahl
+        const cx = px + pw / 2, cy = py + ph / 2, r = Math.min(pw, ph) / 2;
+        if (p.post) { c.fillStyle = out ? 'rgba(255,255,255,0.3)' : '#6b4a2a'; c.fillRect(cx - Math.max(1.5, pw * 0.08), cy, Math.max(3, pw * 0.16), gy - cy); }
+        c.beginPath(); c.arc(cx, cy, r, 0, TAU);
+        if (out) { c.stroke(); return; }
+        ['#e2473b', '#fff', '#e2473b', '#fff', '#ffd23f'].forEach((col, q) => { c.fillStyle = col; c.beginPath(); c.arc(cx, cy, r * (1 - q * 0.19), 0, TAU); c.fill(); });
+        c.strokeStyle = '#5a3a1f'; c.lineWidth = Math.max(1, r * 0.1); c.beginPath(); c.arc(cx, cy, r, 0, TAU); c.stroke();
       } else if (k === 'cart') {
         c.beginPath(); c.rect(px, py, pw, ph * 0.75);
         if (out) c.stroke(); else { c.fillStyle = col; c.fill(); c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(px, py + ph * 0.3, pw, Math.max(1, ph * 0.08)); c.fillStyle = '#222'; [0.25, 0.75].forEach(f => { c.beginPath(); c.arc(px + pw * f, py + ph * 0.8, Math.max(1.5, ph * 0.2), 0, TAU); c.fill(); }); }
@@ -1237,6 +1253,18 @@
         c.globalAlpha = 1;
         if (t.hit) { c.font = '700 14px Fredoka, system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#5ee07a'; c.fillText('✓', x, y); }
       });
+      if (ch.train) { // Trainingszentrum: Schild, Zähler und Belohnung
+        if (v.phase !== 'aim') label(W / 2 - 30, 58, '🏋️ ' + ch.c.name + ' · Ziel ' + ((v.trainN || 0) + 1), 'rgba(40,90,60,0.88)');
+        const rw = ch.reward;
+        if (rw && rw.t < 1.6) {
+          const k = Math.min(1, rw.t / 0.3), pop = k < 1 ? 0.4 + 0.6 * k + Math.sin(k * Math.PI) * 0.3 : 1, a = rw.t > 1.2 ? (1.6 - rw.t) / 0.4 : 1;
+          c.save(); c.globalAlpha = a; c.translate(W / 2, v.groundY * 0.42); c.scale(pop, pop); c.textAlign = 'center'; c.textBaseline = 'middle';
+          c.font = `700 ${Math.min(34, W / 11)}px Fredoka, system-ui, sans-serif`; c.lineWidth = 6; c.strokeStyle = 'rgba(10,40,20,0.8)'; c.strokeText(rw.text, 0, 0); c.fillStyle = '#5ee07a'; c.fillText(rw.text, 0, 0);
+          c.font = '600 12px Fredoka, system-ui, sans-serif'; c.lineWidth = 4; c.strokeText(rw.sub, 0, 28); c.fillStyle = '#eaffd0'; c.fillText(rw.sub, 0, 28);
+          c.restore();
+        }
+        return;
+      }
       const t = ch.c.name + ' · Versuch ' + Math.min(ch.c.tries, ch.used + 1) + '/' + ch.c.tries + (ch.targets ? ' · Ziele ' + ch.targets.filter(x => x.hit).length + '/' + ch.targets.length : '') + (ch.tower ? ' · Teile ' + ch.hp.filter(h => h <= 0).length + '/' + ch.hp.length : '');
       if (v.phase !== 'aim') label(W / 2, 58, '🏆 ' + t, 'rgba(90,40,120,0.85)');
     }
