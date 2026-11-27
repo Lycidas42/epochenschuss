@@ -4,7 +4,7 @@
   const J = window.JS;
   const $ = q => document.querySelector(q);
   const SAVE = 'jushoot-v2', SCORES = 'jushoot-scores';
-  const VERSION = '0.5.0'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
+  const VERSION = '0.6.0'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
   const G = 9.81e-3; // km/s²
 
   // ---------- Speichern ----------
@@ -542,6 +542,7 @@
     fps = fps * 0.95 + (1 / Math.max(1e-3, rdt)) * 0.05;
     view.time += dt; view.dt = dt; phaseT += dt;
     const got = J.tickRes(s, dt);
+    if (s.farm) { const acts = J.tickFarm(s, dt); if (acts.length && stageView === 'farm' && farmR) acts.forEach(a => { if (a.gold) farmR.money('+' + J.fmtNum(a.gold) + ' Gold'); else if (a.i >= 0) farmR.botAct(a.bot, a.i, a.act, a.crop, a.crop ? J.cropOf(a.crop).name : ''); }); }
     if (stageView === 'res') for (const id in got) { const i = J.MATS.findIndex(m => m.id === id); if (tiles[i]) tiles[i].pop(i, got[id], true); }
     jumpPlayer(); view.act = Math.max(0, (view.act || 0) - dt * 2.2); if (view.pose === 'fire' && view.act <= 0) view.pose = 'idle';
     if (phase === 'aim' && view.bar) { view.bar.t += dt * J.stats(s).barSpeed; const f = view.bar.t % 2; view.bar.pos = f < 1 ? f : 2 - f; }
@@ -587,6 +588,7 @@
     if (dev.info) { const st = J.stats(s); view.info = [`${Math.round(fps)} fps · Zoom ×${zoom.toFixed(2)} · ${Math.round(view.scale)} px/km`, `Reichweite ${J.fmtKm(st.range)} · bei ${s.angle}°/${s.power} %: ${J.fmtKm(reachNow())}`, `Schaden ${J.fmtNum(st.dmg)} · Zone ${Math.round(st.zone * 100)} % · Vorschau ${Math.round(st.preview * 100)} %`, `Schüsse ${s.shots} · Ereignis ${view.event ? view.event.type : '–'}`]; } else view.info = null;
     if (onCanvas()) R.draw(view);
     if (stageView === 'res') drawResStage(dt);
+    if (stageView === 'farm' && farmR) farmR.draw(s, view.time, dt, J);
     uiT += dt; saveT += dt;
     if (uiT > 0.25) { uiT = 0; tickUI(); }
     if (saveT > 5) { saveT = 0; save(); }
@@ -818,7 +820,67 @@
         <div class="muted small">Kurs: ${String(rate.toFixed(1)).replace('.', ',')} ${esc(m.name)} = 1 ${esc(J.MATS[j].name)}</div>`; }).join('');
     modal(`<h2>⇄ ${esc(m.name)} tauschen</h2><p class="muted">${esc(m.name)} brauchst du in der ${esc(J.AGES[s.age].name)} nicht mehr. Tausche deinen Vorrat (${J.fmtNum(have)}) gegen eine Ressource, die du jetzt brauchst. Der Händler behält die Hälfte als Gebühr.</p>${opts}<button class="btn sec" data-close style="width:100%;margin-top:10px">Abbrechen</button>`);
   }
-  let farmR = null; function openFarm() {}
+  // ---------- Farm-Welt: säen, gießen, ernten, verkaufen; Beete, Sorten und Bots kaufen ----------
+  let farmR = null, farmSig = '';
+  const CROP_IC = { weizen: '🌾', mais: '🌽', kuerbis: '🎃', blume: '🌻', gold: '✨' };
+  function openFarm() {
+    J.farmOf(s);
+    if (!farmR) {
+      $('#farmView').innerHTML = `<canvas id="farmCv" class="farm-cv" aria-label="Farm – Beete antippen"></canvas><div class="farm-ui" id="farmUi"></div>`;
+      farmR = makeFarmRenderer($('#farmCv'));
+      $('#farmCv').addEventListener('pointerdown', farmTap);
+      $('#farmUi').addEventListener('click', farmClick);
+    }
+    farmR.resize(); farmSig = ''; renderFarm();
+    if (!s.farm.sold && !s.farm.tip) { s.farm.tip = 1; toast('🌾 Willkommen auf der Farm! Tippe ein Beet an: <b>säen</b>, dann <b>gießen</b>, später <b>ernten</b>. Die Ernte verkaufst du unten für Gold.'); }
+  }
+  function farmTap(e) {
+    const r = e.currentTarget.getBoundingClientRect(), i = farmR.slotAt(e.clientX - r.left, e.clientY - r.top), f = s.farm;
+    if (i < 0) return;
+    if (i >= f.plots.length) { if (i === f.plots.length) { if (J.buyPlot(s)) { sfx('buy'); toast('Neues Beet angelegt (' + f.plots.length + '/' + J.FARM_MAX + ')'); save(); renderFarm(); } else toast('Ein neues Beet kostet ' + COIN() + ' ' + J.fmtNum(J.plotCost(s))); } return; }
+    const res = J.farmAct(s, i);
+    if (!res) return;
+    if (res.err === 'seed') { toast('Kein Saatgut für ' + CROP_IC[f.sel] + ' ' + esc(J.cropOf(f.sel).name) + '. Kauf unten neues.'); sfx('bad'); return; }
+    if (res.act === 'wait') { const p = f.plots[i], cr = J.cropOf(p.crop); toast(CROP_IC[p.crop] + ' ' + esc(cr.name) + ' wächst noch ' + Math.ceil(cr.time - p.t) + ' s'); return; }
+    farmR.act(i, res.act, res.crop, res.crop ? J.cropOf(res.crop).name : ''); sfx(res.act === 'harvest' ? 'star' : 'tap'); renderFarm();
+  }
+  function farmClick(e) {
+    const b = e.target.closest('button'); if (!b || b.disabled) return;
+    const f = s.farm, d = b.dataset;
+    if (d.fsel) { f.sel = d.fsel; sfx('click'); }
+    else if (d.fsell != null) { const g = J.farmSell(s); if (g) { sfx('perfect'); farmR.money('+' + J.fmtNum(g) + ' Gold'); toast('Ernte verkauft: ' + COIN() + ' +' + J.fmtNum(g)); } }
+    else if (d.fseed) { if (J.buySeeds(s, d.fseed, +d.n || 1)) sfx('buy'); }
+    else if (d.fplot != null) { if (J.buyPlot(s)) sfx('buy'); }
+    else if (d.fcrop) { if (J.buyCrop(s, d.fcrop)) { sfx('up'); toast('Neue Sorte: ' + CROP_IC[d.fcrop] + ' <b>' + esc(J.cropOf(d.fcrop).name) + '</b>'); } }
+    else if (d.fbot) { if (J.buyBot(s, d.fbot)) { sfx('up'); const bd = J.BOTS.find(x => x.id === d.fbot); toast('🤖 ' + esc(bd.name) + ' Stufe ' + f.bots[d.fbot]); } }
+    save(); farmSig = ''; renderFarm(); renderHud();
+  }
+  function renderFarm() {
+    const f = s.farm; if (!f || !farmR) return;
+    const val = J.grainValue(s), sig = JSON.stringify([f.sel, f.seeds, f.grain, f.crops, f.bots, f.plots.length, Math.floor(s.gold)]);
+    if (sig === farmSig) return; farmSig = sig;
+    const mine = J.CROPS.filter(c => f.crops[c.id]);
+    let h = `<div class="farm-row">${mine.map(c => `<button class="ammo-chip ${f.sel === c.id ? 'on' : ''}" data-fsel="${c.id}" title="Säen: ${esc(c.name)}">${CROP_IC[c.id]} <span>${f.seeds[c.id] || 0}</span></button>`).join('')}<span class="muted small">Saatgut zum Säen wählen</span></div>`;
+    const inv = Object.keys(f.grain).filter(k => f.grain[k] > 0).map(k => CROP_IC[k] + ' ' + f.grain[k]).join(' · ');
+    h += `<div class="card farm-store"><div class="info"><b>Lager</b> <span class="muted">${inv || 'noch leer'}</span></div><button class="btn ready-sell" data-fsell ${val >= 1 ? '' : 'disabled'}>Verkaufen ${COIN()} ${J.fmtNum(val)}</button></div>`;
+    const cr = J.cropOf(f.sel), sc = J.seedCost(s, f.sel);
+    h += `<div class="card upg"><div class="ammo-ic">${CROP_IC[f.sel]}</div><div class="info"><div class="name">Saatgut: ${esc(cr.name)}</div><div class="muted">wächst ${cr.time} s · bringt je Beet ${COIN()} ${J.fmtNum(Math.max(1, J.sellPrice(s, f.sel)))}</div></div>
+      <div class="col-btns"><button class="btn" data-fseed="${f.sel}" data-n="1" ${s.gold >= sc ? '' : 'disabled'}>${J.SEED_PACK}× ${COIN()} ${J.fmtNum(sc)}</button><button class="btn sec" data-fseed="${f.sel}" data-n="4" ${s.gold >= sc * 4 ? '' : 'disabled'}>${J.SEED_PACK * 4}× ${COIN()} ${J.fmtNum(sc * 4)}</button></div></div>`;
+    if (f.plots.length < J.FARM_MAX) { const pc = J.plotCost(s); h += `<div class="card upg"><div class="ammo-ic">🟫</div><div class="info"><div class="name">Neues Beet <span class="muted">· ${f.plots.length}/${J.FARM_MAX}</span></div><div class="muted">Mehr Beete, mehr Ernte.</div></div><button class="btn" data-fplot ${s.gold >= pc ? '' : 'disabled'}>${COIN()} ${J.fmtNum(pc)}</button></div>`; }
+    h += '<h4 class="sub">Sorten</h4>';
+    J.CROPS.forEach(c => {
+      if (f.crops[c.id]) return; const cc = J.cropCost(s, c.id);
+      h += `<div class="card upg"><div class="ammo-ic">${CROP_IC[c.id]}</div><div class="info"><div class="name">${esc(c.name)}</div><div class="muted">wächst ${c.time} s · bringt je Beet ${COIN()} ${J.fmtNum(Math.max(1, J.sellPrice(s, c.id)))}</div></div><button class="btn" data-fcrop="${c.id}" ${s.gold >= cc ? '' : 'disabled'}>${COIN()} ${J.fmtNum(cc)}</button></div>`;
+    });
+    h += '<h4 class="sub">Bots</h4>';
+    J.BOTS.forEach(bd => {
+      const lv = f.bots[bd.id] || 0, bc = J.botCost(s, bd.id);
+      h += `<div class="card upg"><div class="ammo-ic">🤖</div><div class="info"><div class="name">${esc(bd.name)} <span class="muted">· ${lv ? 'Stufe ' + lv : 'nicht gekauft'}</span></div><div class="muted">${esc(bd.desc)}${lv ? ', alle ' + (3 / lv).toFixed(1).replace('.', ',') + ' s' : ''}</div></div>
+        ${lv >= 5 ? '<span>✅</span>' : `<button class="btn" data-fbot="${bd.id}" ${s.gold >= bc ? '' : 'disabled'}>${lv ? 'Schneller' : 'Kaufen'} ${COIN()} ${J.fmtNum(bc)}</button>`}</div>`;
+    });
+    h += `<div class="muted small" style="margin:8px 2px">Die Farm gehört zu diesem Lauf und beginnt nach einem Zeitsprung von vorn. Pflanzen wachsen auch, wenn das Spiel zu ist, Bots arbeiten nur bei geöffnetem Spiel.</div>`;
+    $('#farmUi').innerHTML = h;
+  }
   const onCanvas = () => stageView === 'cannon' || stageView === 'train';
   function setStageView(v) {
     if (v === 'train' && stageView !== 'train' && phase !== 'idle') { toast('Erst den Schuss abwarten'); return; }
@@ -933,6 +995,7 @@
   function tickUI() {
     renderHud();
     if (stageView === 'res') updateResGrid();
+    if (stageView === 'farm') renderFarm();
     let nsig = tab + '|' + phase + (chal ? 'c' : '');
     if (tab === 'cannon') nsig += J.upgList(s).map(u => J.canAfford(s, u.cost) ? 1 : 0).join('') + J.canAgeUp(s) + Object.values(s.mats).join(',');
     if (tab === 'shop') nsig += J.AMMO.map(a => s.gold >= J.ammoCost(s, a.id) ? 1 : 0).join('') + J.shrineOffers(s).map(o => s.gold >= J.shrineCost(s, o) ? 1 : 0).join('') + s.shrines.length;
