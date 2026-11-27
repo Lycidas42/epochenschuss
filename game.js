@@ -4,7 +4,7 @@
   const J = window.JS;
   const $ = q => document.querySelector(q);
   const SAVE = 'jushoot-v2', SCORES = 'jushoot-scores';
-  const VERSION = '0.7.7'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
+  const VERSION = '0.7.8'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
   const G = 9.81e-3; // km/s²
 
   // ---------- Speichern ----------
@@ -806,7 +806,7 @@
     setAngle(s.angle || 45); setPower(s.power || 100); syncObstacles(); spawnStars(); computePreview(); updateFire(); save();
     setTimeout(() => { $('#jumpFx').hidden = true; }, 1200);
     document.querySelector('[data-tab=jump]').click();
-    modal(`<h2>💠 Zeitsprung geglückt!</h2><p>Du bist zurück in der <b>Steinzeit</b> und hast <b>${J.fmtNum(r.got)} Zeitsplitter</b> mitgebracht (Rekord ${J.fmtKm(r.km)}).</p>
+    modal(`<h2>💠 Zeitsprung geglückt!</h2><p>Du startest in der <b>${esc(J.AGES[s.age].name)}</b> und hast <b>${J.fmtNum(r.got)} Zeitsplitter</b> mitgebracht (Rekord ${J.fmtKm(r.km)}).</p>
       <p class="muted">Gib sie in der Zeitwerkstatt aus. Die Upgrades dort bleiben für immer.</p><button class="btn" data-close style="width:100%">Zur Zeitwerkstatt</button>`);
   }
   // Gedrückt halten (1 s), damit niemand aus Versehen springt

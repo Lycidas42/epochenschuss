@@ -183,6 +183,7 @@
     { id: 'glueck',  br: 'Zeit',       icon: '🍀', name: 'Glückskind',        max: 4,  base: 4, eff: l => 'Gute Ereignisse ' + (100 + 50 * l) + ' % so häufig' },
     { id: 'trainer', br: 'Zeit',       icon: '🏋️', name: 'Trainingseifer',    max: 4,  base: 5, eff: l => 'Trainings-Boni +' + pc(P.wsTrainer * l) + ' %' },
     { id: 'meister', br: 'Zeit',       icon: '🏆', name: 'Challenge-Meister', max: 5,  base: 4, eff: l => 'Challenge-Boni +' + pc(P.wsMeister * l) + ' %' },
+    { id: 'zeitzone', br: 'Zeit',      icon: '⏳', name: 'Zeitreise-Start',   max: 5,  base: 25, costs: [25, 60, 140, 300, 600], eff: l => 'Nach dem Zeitsprung Start in der ' + AGES[l].name + ' (Hindernisse davor zerstört, Upgrades davor geschenkt)' },
     { id: 'blick',   br: 'Zeit',       icon: '🔭', name: 'Weitblick',         max: 4,  base: 3, eff: l => 'Flugbahn-Vorschau +' + 5 * l + ' %' },
     // Farm (Nico): dauerhafte Farm-Upgrades, gelten für jede neue Farm nach dem Zeitsprung
     { id: 'daumen',  br: 'Farm',       icon: '🌾', name: 'Grüner Daumen',     max: 6,  base: 4, eff: l => 'Farm-Ernte +' + pc(P.wsDaumen * l) + ' %' },
@@ -196,7 +197,7 @@
   function startGold(l) { return l ? Math.round(30 * Math.pow(3, l - 1)) : 0; }
   function newMeta() { return { sp: 0, earned: 0, jumps: 0, upg: {}, winBonus: false, bestRun: 0, skins: {}, train: { n: 0, dmg: 0, range: 0, gold: 0 } }; }
   const W = (s, id) => (s && s.meta && s.meta.upg[id]) || 0;
-  function wsCost(s, w) { return Math.round(w.base * Math.pow(P.wsG, W(s, w.id))); }
+  function wsCost(s, w) { const l = W(s, w.id); return w.costs ? w.costs[Math.min(l, w.costs.length - 1)] : Math.round(w.base * Math.pow(P.wsG, l)); }
   function wsList(s) { return WORKSHOP.map(w => { const lv = W(s, w.id); return { w, lv, maxed: lv >= w.max, cost: lv >= w.max ? 0 : wsCost(s, w), now: lv ? w.eff(lv) : '–', next: lv < w.max ? w.eff(lv + 1) : null }; }); }
   function wsBuy(s, id) {
     const w = WORKSHOP.find(x => x.id === id); if (!w) return false;
@@ -230,9 +231,18 @@
     if (pv.win) m.winBonus = true;
     const n = newState(m);
     ['name', 'ch', 'st', 'record', 'won', 'angle', 'power'].forEach(k => { if (s[k] !== undefined) n[k] = s[k]; });
+    startLater(n, W(n, 'zeitzone'));
     return { s: n, got: pv.n, km: pv.km };
   }
 
+  // Zeitreise-Start (Nico): Lauf beginnt in einem späteren Zeitalter. Hindernisse davor gelten als zerstört,
+  // Upgrades davor als gekauft (über ageUp), dazu etwas Startgold passend zum Zeitalter.
+  function startLater(s, age) {
+    age = Math.min(age, AGES.length - 1);
+    while (s.age < age) { OBS.filter(o => o.age === s.age).forEach(o => { s.oh[o.id] = s.oh[o.id].map(() => 0); }); if (!ageUp(s)) break; }
+    s.freeUpg = 0;
+    if (age > 0) s.gold += 10 * goldUnit(s);
+  }
   // ---------- Munition (Gold, verbraucht sich, gilt für diesen Lauf) ----------
   // Preis je Stück in „Schüssen“: Gold, das ein normaler Schuss auf volle Reichweite zu Beginn des Zeitalters bringt
   const AMMO = [
