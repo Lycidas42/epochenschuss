@@ -1045,8 +1045,7 @@
     }
 
     // ---------- Ereignisse ----------
-    function drawEvent(v) {
-      const e = v.event; if (!e) return;
+    function drawEvent(v, e) {
       const X = x => v.x0 + x * v.scale, Y = y => v.groundY - y * v.scale;
       if (e.type === 'wind') {
         const dir = Math.sign(e.wind);
@@ -1101,8 +1100,7 @@
       }
     }
     // Wetter über die ganze Szene (Regen, Nebel, Fallwind)
-    function drawWeather(v) {
-      const e = v.event; if (!e) return;
+    function drawWeather(v, e) {
       if (e.type === 'rain') {
         c.strokeStyle = 'rgba(170,200,255,0.55)'; c.lineWidth = 1.2;
         for (let i = 0; i < 70; i++) { const x = ((i * 71.3 + v.time * 60) % (W + 40)) - 20, y = ((i * 37.7 + v.time * 420) % (v.groundY + 20)) - 20; c.beginPath(); c.moveTo(x, y); c.lineTo(x - 4, y + 12); c.stroke(); }
@@ -1115,14 +1113,14 @@
       }
     }
     // Ereignis-Anzeige: Symbol, Name, Wirkung und verbleibende Schüsse – solange es aktiv ist
-    function drawEventBadge(v) {
-      const e = v.event; if (!e || v.ageFx || v.winFx) return;
-      const y = v.bar ? 72 : 8, col = e.good === true ? '#5ee07a' : e.good === false ? '#ff6b5b' : '#7fc8ff';
+    function drawEventBadge(v, e, k) {
+      if (v.ageFx || v.winFx) return;
+      const y = (v.bar ? 72 : 8) + k * 54, col = e.good === true ? '#5ee07a' : e.good === false ? '#ff6b5b' : '#7fc8ff';
       c.textAlign = 'left'; c.textBaseline = 'middle';
       c.font = '700 14px Fredoka, system-ui, sans-serif'; const w1 = c.measureText(e.icon + ' ' + e.name).width;
       c.font = '500 11px Fredoka, system-ui, sans-serif'; const w2 = c.measureText(e.desc || '').width;
       const w = Math.min(W - 60, Math.max(w1, w2 + 0, 70 + e.total * 9) + 22), h = 48;
-      const pop = view_intro(v) ? 1 + 0.08 * Math.sin(v.time * 14) : 1;
+      const pop = view_intro(v) && v.intro.e === e ? 1 + 0.08 * Math.sin(v.time * 14) : 1;
       c.save(); c.translate(8, y); c.scale(pop, pop);
       c.fillStyle = 'rgba(16,12,24,0.82)'; rr(c, 0, 0, w, h, 10); c.fill();
       c.fillStyle = col; rr(c, 0, 0, 5, h, 3); c.fill();
@@ -1449,7 +1447,7 @@
       if (!v.chal) v.obstacles.forEach(o => drawObstacle(v, o));
       drawPortal(v);
       drawWreckage(v);
-      drawEvent(v);
+      (v.events || []).forEach(e => drawEvent(v, e));
       drawChallenge(v);
       // Sterne
       v.stars.forEach(s => {
@@ -1482,7 +1480,7 @@
       }
       if (v.lastLand) flag(v.x0 + v.lastLand.x * v.scale, gy, '#4ccf6a', v.lastLand.text, 30);
       // Kanone und Spieler
-      drawWeather(v);
+      (v.events || []).forEach(e => drawWeather(v, e));
       if (v.ageFx) { // alte Kanone schrumpft und glüht, neue springt mit Überschwingen heraus
         const t = v.ageFx.t, old = t < 1.1, k = old ? Math.max(0.05, 1 - Math.max(0, t - 0.4) / 0.7) : Math.min(1, (t - 1.1) / 0.35);
         const sc = old ? k : (k < 1 ? k * 1.25 - Math.max(0, k - 0.8) * 1.25 : 1), age = old ? v.ageFx.from : v.ageFx.to;
@@ -1528,7 +1526,7 @@
         c.strokeText(t, W / 2, 14); c.fillStyle = '#fff'; c.fillText(t, W / 2, 14);
       }
       drawGoodFx(v);
-      drawEventBadge(v);
+      (v.events || []).forEach((e, k) => drawEventBadge(v, e, k));
       drawEventIntro(v);
       drawAgeFx(v);
       drawWinFx(v);

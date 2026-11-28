@@ -39,6 +39,8 @@ Eigene Ansicht im Spielfenster (Umschalter **🎯 Kanone / ⛏️ Rohstoffe / �
 
 ## Ereignisse (halten 3–5 Schüsse an)
 
+Bis zu **2 Ereignisse gleichzeitig** (nie zweimal dieselbe Art), z. B. Schubvogel + Rückenwind. Läuft schon eins, kommt mit 20 % Chance pro Schuss ein zweites dazu. Beide Karten stehen untereinander oben links.
+
 Start mit großem Hinweis in der Mitte, danach oben links eine Karte mit Symbol, Wirkung und verbleibenden Schüssen (grün = gut, rot = schlecht). Regen, Nebel und Fallwind sind auch im Bild zu sehen. Boni enden, sobald man sie eingesammelt hat.
 
 

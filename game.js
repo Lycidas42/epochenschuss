@@ -4,7 +4,7 @@
   const J = window.JS;
   const $ = q => document.querySelector(q);
   const SAVE = 'jushoot-v2', SCORES = 'jushoot-scores';
-  const VERSION = '0.7.9'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
+  const VERSION = '0.8.0'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
   const G = 9.81e-3; // km/s²
 
   // ---------- Speichern ----------
@@ -48,7 +48,7 @@
   const R = makeRenderer(canvas, J);
   const view = {
     W: 0, H: 0, x0: 60, groundY: 200, scale: 1000, age: s.age, angle: s.angle, phase: 'idle', time: 0, dt: 0, cur: s.cur,
-    playerX: 0, pose: 'idle', recoil: 0, flash: 0, ball: null, trail: [], stars: [], flyers: [], obstacles: [], parts: [], texts: [],
+    playerX: 0, pose: 'idle', recoil: 0, flash: 0, ball: null, trail: [], stars: [], flyers: [], events: [], obstacles: [], parts: [], texts: [],
     record: s.runRec, lastLand: null, bar: null, preview: [], event: null, chal: null,
     debris: [], ghosts: [], trailA: 1, shake: 0, intro: null, ageFx: null,
   };
@@ -107,11 +107,12 @@
     const blk = J.nextBlocking(s);
     if (blk && blk.at < st.range * 2.2) { xMax = Math.max(xMax, blk.end * 1.12); yMax = Math.max(yMax, blk.top * 1.4); }
     view.stars.forEach(t => { xMax = Math.max(xMax, t.x * 1.08); yMax = Math.max(yMax, t.y * 1.15); });
-    const e = view.event;
+    for (const e of view.events) {
     if (e && e.type === 'bird' && !e.got) { xMax = Math.max(xMax, e.cx * 1.15); yMax = Math.max(yMax, e.cy * 1.35); }
     if (e && e.type === 'bonusAir') { xMax = Math.max(xMax, e.x * 1.1); yMax = Math.max(yMax, e.y * 1.3); }
     if (e && (e.type === 'bonusGround' || e.type === 'mole' || e.type === 'plant')) xMax = Math.max(xMax, e.at * 1.1);
     if (e && e.type === 'plant') yMax = Math.max(yMax, e.h * 1.6);
+    }
     return fitScale(xMax, yMax);
   }
   function zoomLimits() { const a = autoScale(); return [0.6, Math.max(1, a / fitScale(J.P.goal * 1.1, J.P.goal * 0.3))]; }
@@ -120,7 +121,7 @@
   // Flugbahn-Vorschau ab der Mündung (ohne Wind), Länge = Anteil der Flugzeit
   function computePreview() {
     view.preview = [];
-    if (phase === 'flight' || phase === 'land' || (view.event && view.event.type === 'fog')) return;
+    if (phase === 'flight' || phase === 'land' || evOf('fog')) return;
     const st = J.stats(s), v0 = vel(s.power), a = rad(s.angle), m = R.muzzle(s.age, s.angle, s.cur), sc = view.scale;
     const x0 = m.x / sc, y0 = -m.y / sc, vx = v0 * Math.cos(a), vy = v0 * Math.sin(a);
     const T = (vy + Math.sqrt(vy * vy + 2 * G * Math.max(0, y0))) / G, tEnd = T * (dev.fullPreview ? 1 : chal ? st.chalPreview : st.preview); // nur das Anfangsstück, in Challenges kürzer
@@ -134,7 +135,7 @@
     view.stars = [];
     if (chal) return;
     const st = J.stats(s), lim = st.range * 1.05;
-    const n = st.stars * (view.event && view.event.type === 'stars' ? 2 : 1);
+    const n = st.stars * (evOf('stars') ? 2 : 1);
     for (let i = 0; i < n; i++) {
       const x = lim * (0.2 + 0.75 * Math.random());
       view.stars.push({ x, y: st.range * (0.03 + 0.3 * Math.random()) * Math.min(1, x / (st.range * 0.5)), got: false });
@@ -156,16 +157,21 @@
     { type: 'bird',        w: 3, good: true,  icon: '🐦', name: 'Schubvogel',   desc: 'kreist am Himmel: treffen = Mega-Schub' },
   ];
   let eventCool = 0;
+  // Mehrere Ereignisse gleichzeitig (Nico): bis zu 2, nie zweimal dieselbe Art
+  const EV_MAX = 2;
+  const evOf = type => view.events.find(e => e.type === type);
   function spawnEvent(force) {
-    view.event = null;
     if (chal) return;
     let ev = EVENTS.find(e => e.type === force);
+    if (ev) { view.events = view.events.filter(e => e.type !== ev.type); if (view.events.length >= EV_MAX) view.events.shift(); }
     if (!ev) {
-      if (dev.noEvents || chal || s.shots < 3 || eventCool > 0 || Math.random() > 0.35) { eventCool = Math.max(0, eventCool - 1); return; }
-      const luck = 1 + 0.5 * J.W(s, 'glueck'), wt = e => e.w * (e.good ? luck : 1); // Glückskind: gute Ereignisse häufiger
+      // ohne Ereignis 35 %, mit einem laufenden 20 % Chance auf ein zusätzliches
+      if (dev.noEvents || chal || s.shots < 3 || eventCool > 0 || view.events.length >= EV_MAX || Math.random() > (view.events.length ? 0.2 : 0.35)) { eventCool = Math.max(0, eventCool - 1); return; }
+      const luck = 1 + 0.5 * J.W(s, 'glueck'), wt = e => evOf(e.type) ? 0 : e.w * (e.good ? luck : 1); // Glückskind: gute Ereignisse häufiger
       const tot = EVENTS.reduce((a, e) => a + wt(e), 0);
-      let r = Math.random() * tot; ev = EVENTS[0];
-      for (const e of EVENTS) { r -= wt(e); if (r <= 0) { ev = e; break; } }
+      let r = Math.random() * tot; ev = null;
+      for (const e of EVENTS) { if (!wt(e)) continue; r -= wt(e); if (r <= 0) { ev = e; break; } }
+      if (!ev) return;
     }
     const st = J.stats(s), lim = st.range;
     const shots = 3 + Math.floor(Math.random() * 3);
@@ -189,16 +195,19 @@
       e.fly = { x: e.cx, y: e.cy, vx: 1, type: s.age, ph: Math.random() * 6, hit: false, big: true, hover: true };
     }
     e.label = e.icon + ' ' + e.name;
-    view.event = e; view.intro = { e, t: 0 };
+    view.events.push(e); view.intro = { e, t: 0 };
   }
   // Nach jedem Schuss: Ereignis zählt herunter, eingesammelte Boni enden sofort
   function advanceEvent() {
-    const e = view.event;
-    if (!e) return spawnEvent();
-    e.left--;
-    if (e.left <= 0 || e.got) { view.event = null; eventCool = 1; toast(e.icon + ' ' + e.name + ' ist vorbei'); return; }
-    if (e.clouds) e.clouds.forEach(cl => { cl.hit = false; });
-    e.ate = 0;
+    let ended = false;
+    view.events = view.events.filter(e => {
+      e.left--;
+      if (e.left <= 0 || e.got) { ended = true; toast(e.icon + ' ' + e.name + ' ist vorbei'); return false; }
+      if (e.clouds) e.clouds.forEach(cl => { cl.hit = false; });
+      e.ate = 0; return true;
+    });
+    if (ended) { eventCool = 1; return; }
+    spawnEvent();
   }
 
   // ---------- Schuss-Ablauf ----------
@@ -225,10 +234,10 @@
     const a = rad(s.angle), v0 = vel(s.power, qq.q) * (ammo === 'pfeil' ? Math.sqrt(0.85) : 1);
     const Rq = v0 * v0 / G;
     const tRef = 2 * v0 * Math.SQRT1_2 / G, tTarget = 1.7 + 0.45 * Math.log10(1 + Rq * 10);
-    const m = R.muzzle(s.age, s.angle, s.cur), sc = view.scale, e = view.event || {};
+    const m = R.muzzle(s.age, s.angle, s.cur), sc = view.scale, wnd = evOf('wind');
     shot = { inChal: !!chal, ammo, pierced: [], bounces: 0, q: qq.q, crit: qq.crit, v0, ts: tRef / tTarget, starGold: 0, birdGold: 0, bonus: 0, blocked: null,
       predD: Rq * Math.sin(2 * a), predApex: Rq * Math.sin(a) ** 2 / 2,
-      g: G * (e.type === 'heavy' ? 1.3 : 1), wind: e.wind || 0, drag: e.type === 'rain' ? 0.5 / tRef : 0 };
+      g: G * (evOf('heavy') ? 1.3 : 1), wind: wnd ? wnd.wind : 0, drag: evOf('rain') ? 0.5 / tRef : 0 };
     view.ball = { x: m.x / sc, y: -m.y / sc, vx: v0 * Math.cos(a), vy: v0 * Math.sin(a), ammo };
     if (ammo !== 'kugel') renderAmmoBar();
     view.trail = [[view.ball.x, view.ball.y]]; view.trailA = 1; view.preview = [];
@@ -367,13 +376,13 @@
         if (f.hit || dist2px(f.x, f.y, b.x, b.y) > 32) return;
         // Kräftiger Schub: die Kugel wird nach vorn und oben geschleudert
         const bk = J.stats(s).bird;
-        f.hit = true; f.boost = 1; if (view.event && view.event.fly === f) view.event.got = true; b.vx = Math.max(b.vx, 0) * (1 + 0.25 * bk) + shot.v0 * 0.08 * bk; b.vy = Math.max(0, b.vy) * 0.5 + shot.v0 * 0.42 * bk;
+        f.hit = true; f.boost = 1; const be = evOf('bird'); if (be && be.fly === f) be.got = true; b.vx = Math.max(b.vx, 0) * (1 + 0.25 * bk) + shot.v0 * 0.08 * bk; b.vy = Math.max(0, b.vy) * 0.5 + shot.v0 * 0.42 * bk;
         const g = Math.max(1, Math.round(J.shotGold(s, Math.max(shot.predD, 0.05)) * 0.3));
         shot.birdGold += g; shot.birdHit = true; const [fx, fy] = toScreen(f.x, f.y); floatText(fx, fy - 20, 'MEGA-SCHUB! +' + J.fmtNum(g), '#7ff6ff', 19); burst(fx, fy, '#ffffff', 22); burst(fx, fy, '#7ff6ff', 16);
         view.rings = view.rings || []; view.rings.push({ x: fx, y: fy, t: 0, col: '127,246,255' }); view.shake = Math.max(view.shake, 0.3); sfx('boost'); setTimeout(() => sfx('perfect'), 90);
       });
       // Ereignisse
-      const e = view.event;
+      for (const e of view.events) {
       if (e && e.type === 'storm') e.clouds.forEach(cl => {
         if (cl.hit || Math.hypot(b.x - cl.x, b.y - cl.y) > Math.max(cl.r, 18 / view.scale)) return;
         cl.hit = true; b.vx *= 0.55; b.vy = Math.min(b.vy, 0) * 0.5 - shot.v0 * 0.05;
@@ -391,6 +400,7 @@
       if (e && e.type === 'mole' && !shot.moled && b.y <= 0 && b.vy < 0 && Math.abs(b.x - e.at) <= Math.max(e.w, 10 / view.scale)) {
         shot.moled = true; e.pop = 1; b.y = 1e-6; b.vy = shot.v0 * 0.38; b.vx = Math.max(b.vx * 0.8, shot.v0 * 0.3);
         const [sx, sy] = toScreen(e.at, 0); floatText(sx, sy - 40, 'Maulwurf! Hoch damit!', '#7ff6ff', 16); burst(sx, sy - 4, '#8a5a2b', 16); sfx('boost');
+      }
       }
       if (chal && chal.targets) chal.targets.forEach(t => {
         if (t.hit || Math.hypot(b.x - t.x, b.y - t.y) > Math.max(t.r, 8 / view.scale) + 5 / view.scale) return;
@@ -439,8 +449,8 @@
     const [lx] = toScreen(d, 0);
     burst(lx, view.groundY - 4, '#c9a46a', 12); sfx('land');
     if (chal) return landChallenge(d);
-    const e = view.event;
-    if (e && e.type === 'bonusGround' && !e.got && Math.abs(d - e.at) <= e.w) {
+    const e = evOf('bonusGround');
+    if (e && !e.got && Math.abs(d - e.at) <= e.w) {
       e.got = true; const g = 10 * J.shotGold(s, d); shot.bonus += g; floatText(lx, view.groundY - 90, 'Schatz! +' + J.fmtNum(g) + ' Gold', '#ffd23f', 17); sfx('perfect');
     }
     const total = (J.shotGold(s, d) + shot.starGold + shot.birdGold + shot.bonus) * (shot.ammo === 'gold' ? 3 + J.W(s, 'goldguss') : 1);
@@ -457,7 +467,7 @@
   }
 
   // Der Schubvogel des Ereignisses (falls aktiv und noch nicht getroffen)
-  function birdFlyers() { const e = view.event; return !chal && e && e.type === 'bird' && e.fly && !e.got ? [e.fly] : []; }
+  function birdFlyers() { const e = evOf('bird'); return !chal && e && e.fly && !e.got ? [e.fly] : []; }
   function finishShot() {
     const wasChal = shot && shot.inChal;
     phase = 'idle'; view.ball = null; view.flyers = []; shot = null;
@@ -486,8 +496,8 @@
     if (chal) return;
     chal = { c: { id: 'train', type: 'tower', name: '', tries: Infinity }, used: 0, train: true, targets: null, ground: null };
     trainTarget();
-    pausedEvent = view.event; view.intro = null;
-    view.chal = chal; view.event = null; view.stars = []; view.lastLand = null; view.trail = []; zoom = 1;
+    pausedEvent = view.events; view.intro = null;
+    view.chal = chal; view.events = []; view.stars = []; view.lastLand = null; view.trail = []; zoom = 1;
     computePreview(); renderAll();
     if (!s.meta.train.n) toast('🏋️ <b>Trainingszentrum</b>: Jedes zerstörte Ziel gibt dir dauerhaft +1 % Schaden, Reichweite oder Gold.');
   }
@@ -515,8 +525,8 @@
       const o = { id: 'chal', age: s.age, at: c.at, u, parts, name: c.name, end: Math.max(...parts.map(p => p.x + p.w)), top: Math.max(...parts.map(p => p.y + p.h + (p.mv ? p.mv.ay : 0))) };
       chal.tower = o; chal.hp = parts.map(p => p.hp); chal.hit = []; chal.ys = parts.map((p, i) => J.partLevel(o, chal.hp, i));
     }
-    pausedEvent = view.event; view.intro = null; // laufendes Ereignis pausiert während der Challenge
-    view.chal = chal; view.event = null; view.stars = []; view.lastLand = null; view.trail = []; zoom = 1;
+    pausedEvent = view.events; view.intro = null; // laufendes Ereignis pausiert während der Challenge
+    view.chal = chal; view.events = []; view.stars = []; view.lastLand = null; view.trail = []; zoom = 1;
     $('#chalExit').hidden = false;
     computePreview(); renderAll();
     toast('Challenge gestartet: <b>' + c.name + '</b>');
@@ -544,7 +554,7 @@
   }
   function endChallenge() {
     chal = null; view.chal = null; $('#chalExit').hidden = true; view.lastLand = null; view.trail = [];
-    view.event = pausedEvent; pausedEvent = null; view.intro = null; // kein neues Ereignis direkt nach der Challenge
+    view.events = pausedEvent || []; pausedEvent = null; view.intro = null; // kein neues Ereignis direkt nach der Challenge
     spawnStars(); computePreview(); renderAll();
   }
   function landChallenge(d) {
@@ -605,9 +615,9 @@
     view.ghosts.forEach(g => { g.t += dt; }); view.ghosts = view.ghosts.filter(g => g.t < 0.6);
     if (view.rings) { view.rings.forEach(r => { r.t += dt; }); view.rings = view.rings.filter(r => r.t < 0.4); }
     view.shake = Math.max(0, view.shake - dt);
-    if (view.event && view.event.fly && !view.event.fly.hit) { const e = view.event, f = e.fly, w = view.time * 0.9 + f.ph; f.x = e.cx + Math.cos(w) * e.rad; f.y = e.cy + Math.sin(w) * e.rad * 0.6; f.vx = -Math.sin(w); }
+    { const e = evOf('bird'); if (e && e.fly && !e.fly.hit) { const f = e.fly, w = view.time * 0.9 + f.ph; f.x = e.cx + Math.cos(w) * e.rad; f.y = e.cy + Math.sin(w) * e.rad * 0.6; f.vx = -Math.sin(w); } }
     if (phase !== 'flight' && phase !== 'land') view.flyers = birdFlyers();
-    if (view.event) { const e = view.event; if (e.pop) e.pop = Math.max(0, e.pop - dt * 1.2); if (e.snap) e.snap = Math.max(0, e.snap - dt * 0.8); }
+    view.events.forEach(e => { if (e.pop) e.pop = Math.max(0, e.pop - dt * 1.2); if (e.snap) e.snap = Math.max(0, e.snap - dt * 0.8); });
     if (view.goodFx) { view.goodFx.t += rdt; if (view.goodFx.t > 0.8) view.goodFx = null; }
     if (view.intro) { view.intro.t += dt; if (view.intro.t > 2.4) view.intro = null; }
     if (chal && chal.reward) chal.reward.t += rdt;
@@ -620,7 +630,7 @@
     view.texts.forEach(t => { t.y -= 26 * dt; t.life -= dt; });
     view.texts = view.texts.filter(t => t.life > 0);
     view.age = view.ageFx && view.ageFx.t < 1.1 ? view.ageFx.from : s.age; view.angle = s.angle; view.phase = phase; view.cur = s.cur; view.dev = dev; view.skins = s.meta.skins; view.trainN = s.meta.train.n;
-    if (dev.info) { const st = J.stats(s); view.info = [`${Math.round(fps)} fps · Zoom ×${zoom.toFixed(2)} · ${Math.round(view.scale)} px/km`, `Reichweite ${J.fmtKm(st.range)} · bei ${s.angle}°/${s.power} %: ${J.fmtKm(reachNow())}`, `Schaden ${J.fmtNum(st.dmg)} · Zone ${Math.round(st.zone * 100)} % · Vorschau ${Math.round(st.preview * 100)} %`, `Schüsse ${s.shots} · Ereignis ${view.event ? view.event.type : '–'}`]; } else view.info = null;
+    if (dev.info) { const st = J.stats(s); view.info = [`${Math.round(fps)} fps · Zoom ×${zoom.toFixed(2)} · ${Math.round(view.scale)} px/km`, `Reichweite ${J.fmtKm(st.range)} · bei ${s.angle}°/${s.power} %: ${J.fmtKm(reachNow())}`, `Schaden ${J.fmtNum(st.dmg)} · Zone ${Math.round(st.zone * 100)} % · Vorschau ${Math.round(st.preview * 100)} %`, `Schüsse ${s.shots} · Ereignis ${view.events.map(e => e.type).join('+') || '–'}`]; } else view.info = null;
     if (onCanvas()) R.draw(view);
     if (stageView === 'res') drawResStage(dt);
     if (stageView === 'farm' && farmR) farmR.draw(s, view.time, dt, J);
@@ -802,7 +812,7 @@
     const r = J.rebirth(s); if (!r) { phase = 'idle'; updateFire(); return; }
     s = r.s;
     for (const k in obsYs) delete obsYs[k]; for (const k in hitMap) delete hitMap[k];
-    view.record = 0; view.lastLand = null; view.trail = []; view.event = null; view.stars = []; zoom = 1;
+    view.record = 0; view.lastLand = null; view.trail = []; view.events = []; view.stars = []; zoom = 1;
     phase = 'idle'; resAge = -1;
     setAngle(s.angle || 45); setPower(s.power || 100); syncObstacles(); spawnStars(); computePreview(); updateFire(); save();
     setTimeout(() => { $('#jumpFx').hidden = true; }, 1200);
@@ -1073,7 +1083,7 @@
     if (stageView !== 'cannon') setStageView('cannon');
     phase = 'ageup'; phaseT = 0; updateFire(); zoom = 1;
     view.ageFx = { t: 0, from: s.age - 1, to: s.age, name: a.name, cannon: a.cannon, rockets: [], next: 0 };
-    view.event = null; view.stars = []; view.preview = []; view.trail = []; view.lastLand = null;
+    view.events = []; view.stars = []; view.preview = []; view.trail = []; view.lastLand = null;
     save(); sig = ''; renderAll();
     [0, 0.15, 0.3, 0.5].forEach((d, k) => setTimeout(() => sfx(k === 3 ? 'up' : 'perfect'), d * 1000));
   }
@@ -1238,7 +1248,7 @@
     const t = e.target;
     if (!DEV) return;
     if (t.dataset.dev) { dev[t.dataset.dev] = t.checked; store('jushoot-dev', dev); computePreview(); return; }
-    if (t.id === 'devEvent' && t.value) { if (chal) endChallenge(); spawnEvent(t.value); spawnStars(); computePreview(); closeModal(); toast('Ereignis: ' + (view.event.label || t.value)); }
+    if (t.id === 'devEvent' && t.value) { if (chal) endChallenge(); spawnEvent(t.value); spawnStars(); computePreview(); closeModal(); toast('Ereignis: ' + t.value); }
     if (t.id === 'devAge') jumpToAge(+t.value);
   });
   // Entwickler: direkt in ein Zeitalter springen (rückwärts = neuer Spielstand mit gleichem Namen)
