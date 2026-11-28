@@ -73,8 +73,9 @@ Höhen-Challenges (Ziele am Boden, auf Podesten und auf Aufzügen, die hoch und 
 
 Tab **Shop** im Werkbank-Panel. Preise wachsen mit dem Zeitalter (Basis = Gold eines vollen Schusses).
 
-- **Munition** in 5er-Packs, Auswahl in der Leiste über dem Laden-Knopf (normale Kugel unbegrenzt): 🏹 Pfeil (×3 Schaden an Hindernissen, 15 % weniger weit), 💣 Sprengkugel (trifft sie ein Hindernis, macht sie normalen Schaden und explodiert danach: 60 % Flächenschaden an den Teilen daneben; am Boden explodiert sie und schleudert weit nach vorn), 🔩 Bohrkugel (durchbohrt bis zu 3 Teile), 🏀 Hüpfkugel (springt 3-mal weiter), 💰 Goldkugel (dreifaches Gold).
+- **Munition** in 5er-Packs, Auswahl in der Leiste über dem Laden-Knopf (normale Kugel unbegrenzt): 🏹 Pfeil (×3 Schaden an Hindernissen, 15 % weniger weit), 💣 Sprengkugel (trifft sie ein Hindernis, macht sie normalen Schaden und explodiert danach: 60 % Flächenschaden an den Teilen daneben; am Boden explodiert sie und schleudert weit nach vorn), 🔩 Bohrkugel (durchbohrt bis zu 3 Teile), 🏀 Hüpfkugel (springt 3-mal weiter), 💰 Goldkugel (dreifaches Gold), 🧲 Magnetkugel (zieht goldene Sterne in der Nähe an).
 - **Schreine:** 3 zufällige Angebote (Schaden, Reichweite, Gold, Arbeitstempo, kritischer Schaden; je nach Stärke teurer), neu würfeln kostet Gold. Jeder Schrein macht den nächsten teurer.
+- Gekaufte Schreine stehen sichtbar hinter der Kanone (je Art einer, mit Flamme in der Farbe der Wirkung).
 - Munition und Schreine gehen beim Zeitsprung verloren.
 
 ## Training

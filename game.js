@@ -4,7 +4,7 @@
   const J = window.JS;
   const $ = q => document.querySelector(q);
   const SAVE = 'jushoot-v2', SCORES = 'jushoot-scores';
-  const VERSION = '0.8.0'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
+  const VERSION = '0.8.1'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
   const G = 9.81e-3; // km/s²
 
   // ---------- Speichern ----------
@@ -365,7 +365,8 @@
       b.x += b.vx * h; b.y += b.vy * h;
       if (!chal && shot.blocked == null) checkObstacles(b);
       if (chal && chal.tower && shot.blocked == null) checkChalTower(b);
-      // Sterne
+      // Sterne (Magnetkugel zieht sie an)
+      if (shot.ammo === 'magnet') { const R = 130 * (1 + 0.3 * J.W(s, 'magnetfeld')); view.stars.forEach(t => { if (t.got) return; const d = dist2px(t.x, t.y, b.x, b.y); if (d < R) { const k = Math.min(1, 0.05 + 0.25 * (1 - d / R)); t.x += (b.x - t.x) * k; t.y += (b.y - t.y) * k; t.pull = 1; } }); }
       view.stars.forEach(t => {
         if (t.got || dist2px(t.x, t.y, b.x, b.y) > 20) return;
         t.got = true; const g = Math.max(1, Math.round(J.shotGold(s, Math.max(shot.predD, 0.05)) * 0.25));
@@ -629,7 +630,7 @@
     view.parts = view.parts.filter(p => p.life > 0);
     view.texts.forEach(t => { t.y -= 26 * dt; t.life -= dt; });
     view.texts = view.texts.filter(t => t.life > 0);
-    view.age = view.ageFx && view.ageFx.t < 1.1 ? view.ageFx.from : s.age; view.angle = s.angle; view.phase = phase; view.cur = s.cur; view.dev = dev; view.skins = s.meta.skins; view.trainN = s.meta.train.n;
+    view.age = view.ageFx && view.ageFx.t < 1.1 ? view.ageFx.from : s.age; view.angle = s.angle; view.phase = phase; view.cur = s.cur; view.dev = dev; view.skins = s.meta.skins; view.shrineK = [...new Set((s.shrines || []).map(x => x.k))]; view.trainN = s.meta.train.n;
     if (dev.info) { const st = J.stats(s); view.info = [`${Math.round(fps)} fps · Zoom ×${zoom.toFixed(2)} · ${Math.round(view.scale)} px/km`, `Reichweite ${J.fmtKm(st.range)} · bei ${s.angle}°/${s.power} %: ${J.fmtKm(reachNow())}`, `Schaden ${J.fmtNum(st.dmg)} · Zone ${Math.round(st.zone * 100)} % · Vorschau ${Math.round(st.preview * 100)} %`, `Schüsse ${s.shots} · Ereignis ${view.events.map(e => e.type).join('+') || '–'}`]; } else view.info = null;
     if (onCanvas()) R.draw(view);
     if (stageView === 'res') drawResStage(dt);

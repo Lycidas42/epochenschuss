@@ -619,7 +619,8 @@
       const aim = pose === 'aim' ? 1 : 0, breathe = Math.sin(t * 2.2) * 0.6;
       const push = type === 'push' || type === 'torch' || type === 'lever';
       const lean = push ? 0.05 * aim + 0.22 * k : -0.04 * aim - 0.2 * k + 0.06 * aim;
-      c.save(); c.translate(x, gy); if (kid) c.scale(0.8, 0.8);
+      const PS = v.big === false ? 1 : 1.18; // Schütze etwas größer (Nico)
+      c.save(); c.translate(x, gy); c.scale(PS, PS); if (kid) c.scale(0.8, 0.8);
       // Werkzeug, das zur Zündung gehört (hinter der Figur)
       if (type === 'push') { // Konsole mit Knopf
         c.fillStyle = '#2a2366'; rr(c, 13, -26, 12, 26, 3); c.fill(); c.fillStyle = '#3b3190'; rr(c, 10, -30, 18, 6, 2); c.fill();
@@ -739,7 +740,7 @@
       c = cv.getContext('2d'); c.setTransform(d * 1.45, 0, 0, d * 1.45, 0, 0);
       const g = c.createLinearGradient(0, 0, 0, 66); g.addColorStop(0, THEME[age].sky[0]); g.addColorStop(1, THEME[age].sky[1]); c.fillStyle = g; c.fillRect(0, 0, 58, 66);
       c.fillStyle = THEME[age].ground; c.fillRect(0, 58, 58, 8);
-      drawPlayer({ time: 0 }, 26, 58, age, 0.3, 'idle', skin, 0);
+      drawPlayer({ time: 0, big: false }, 26, 58, age, 0.3, 'idle', skin, 0);
       c = keep;
     }
 
@@ -943,11 +944,49 @@
         c.rotate(t * 8); c.fillStyle = '#e2473b'; c.beginPath(); c.arc(0, 0, 7.5, 0, TAU); c.fill();
         c.strokeStyle = '#ffd23f'; c.lineWidth = 2; c.beginPath(); c.arc(0, 0, 7.5, -0.6, 0.6); c.stroke(); c.beginPath(); c.arc(0, 0, 7.5, Math.PI - 0.6, Math.PI + 0.6); c.stroke();
         c.fillStyle = 'rgba(255,255,255,0.45)'; c.beginPath(); c.arc(-2.5, -2.5, 2, 0, TAU); c.fill();
+      } else if (id === 'magnet') { // Magnetkugel: Hufeisen rot/blau mit Feldlinien
+        const pr = 0.5 + 0.5 * Math.sin(t * 8);
+        c.strokeStyle = `rgba(255,230,120,${0.25 + 0.3 * pr})`; c.lineWidth = 1.5; [16, 24].forEach(r => { c.beginPath(); c.arc(0, 0, r + pr * 3, 0, TAU); c.stroke(); });
+        c.rotate(t * 3); c.lineCap = 'butt'; c.lineWidth = 6;
+        c.strokeStyle = '#d63a30'; c.beginPath(); c.arc(0, 0, 6, Math.PI, Math.PI * 1.5); c.stroke(); c.beginPath(); c.moveTo(-6, 0); c.lineTo(-6, 6); c.stroke();
+        c.strokeStyle = '#2f6fd6'; c.beginPath(); c.arc(0, 0, 6, Math.PI * 1.5, Math.PI * 2); c.stroke(); c.beginPath(); c.moveTo(6, 0); c.lineTo(6, 6); c.stroke();
+        c.fillStyle = '#e8eef5'; c.fillRect(-9, 6, 6, 3); c.fillRect(3, 6, 6, 3);
       } else if (id === 'gold') { // Goldkugel mit Funkeln
         const g = c.createRadialGradient(-2, -2, 1, 0, 0, 8); g.addColorStop(0, '#fff6c0'); g.addColorStop(0.5, '#ffd23f'); g.addColorStop(1, '#b8792f'); c.fillStyle = g; c.beginPath(); c.arc(0, 0, 7.5, 0, TAU); c.fill();
         const tw = Math.sin(t * 12); if (tw > 0) { c.fillStyle = `rgba(255,255,255,${tw})`; c.fillRect(-10, -0.6, 20, 1.2); c.fillRect(-0.6, -10, 1.2, 20); }
       }
       c.restore();
+    }
+    // Schrein in der Szene: Stufen, Steinsockel, zwei Säulen mit geschwungenem Dach, Laternen und schwebendes Symbol-Licht
+    const SHR_COL = { dmg: '#ff6a2a', range: '#7ff6ff', gold: '#ffd23f', work: '#5ee07a', crit: '#b58cff' };
+    function drawShrineScene(x, gy, k, t, i) {
+      const col = SHR_COL[k] || '#fff', pr = 0.6 + 0.4 * Math.sin(t * 2.4 + i * 1.7), S = 1.05;
+      c.save(); c.translate(x, gy); c.scale(S, S);
+      // Schatten und Leuchten
+      c.fillStyle = 'rgba(0,0,0,0.22)'; c.beginPath(); c.ellipse(0, 0, 22, 4, 0, 0, TAU); c.fill();
+      const gl = c.createRadialGradient(0, -34, 2, 0, -34, 34); gl.addColorStop(0, col + '66'); gl.addColorStop(1, col + '00'); c.fillStyle = gl; c.fillRect(-36, -70, 72, 70);
+      // Stufen
+      const stone = (sx, sy, w, h, a, b) => { const g = c.createLinearGradient(0, sy, 0, sy + h); g.addColorStop(0, a); g.addColorStop(1, b); c.fillStyle = g; rr(c, sx, sy, w, h, 1.5); c.fill(); };
+      stone(-20, -5, 40, 5, '#9a958a', '#6d6a62'); stone(-16, -9, 32, 4, '#aaa59a', '#7d796f'); stone(-12, -21, 24, 12, '#b4afa3', '#837e73');
+      c.fillStyle = 'rgba(0,0,0,0.18)'; c.fillRect(-10, -17, 20, 1); c.fillRect(-10, -13, 20, 1);
+      // Opferschale mit Flamme
+      c.fillStyle = '#5a4a3a'; rr(c, -6, -25, 12, 4, 2); c.fill();
+      const fh = 9 + 3 * pr; c.fillStyle = col; c.beginPath(); c.moveTo(-4, -25); c.quadraticCurveTo(-5, -25 - fh * 0.6, 0, -25 - fh); c.quadraticCurveTo(5, -25 - fh * 0.6, 4, -25); c.closePath(); c.fill();
+      c.fillStyle = '#fff8e0'; c.beginPath(); c.moveTo(-1.8, -25); c.quadraticCurveTo(0, -25 - fh * 0.7, 1.8, -25); c.fill();
+      // Säulen
+      [-15, 15].forEach(px => { const g = c.createLinearGradient(px - 2.5, 0, px + 2.5, 0); g.addColorStop(0, '#7a2a1e'); g.addColorStop(0.5, '#c0392b'); g.addColorStop(1, '#6a2418'); c.fillStyle = g; c.fillRect(px - 2.5, -50, 5, 41); c.fillStyle = '#2b2b2b'; c.fillRect(px - 3.2, -12, 6.4, 3); });
+      // Querbalken und geschwungenes Dach
+      c.fillStyle = '#a8322a'; c.fillRect(-18, -43, 36, 3);
+      c.fillStyle = '#2d2a28'; c.beginPath(); c.moveTo(-24, -51); c.quadraticCurveTo(0, -55, 24, -51); c.lineTo(26, -56); c.quadraticCurveTo(0, -61, -26, -56); c.closePath(); c.fill();
+      c.fillStyle = '#c0392b'; c.beginPath(); c.moveTo(-22, -50); c.quadraticCurveTo(0, -53.5, 22, -50); c.lineTo(22, -48); c.quadraticCurveTo(0, -51.5, -22, -48); c.closePath(); c.fill();
+      // Plakette mit Farbe der Wirkung
+      c.fillStyle = '#2d2a28'; c.fillRect(-4, -48, 8, 6); c.fillStyle = col; c.fillRect(-3, -47, 6, 4);
+      // Laternen
+      [-15, 15].forEach(px => { const sw = Math.sin(t * 1.6 + px) * 1.2; c.strokeStyle = '#2b2b2b'; c.lineWidth = 0.8; c.beginPath(); c.moveTo(px, -40); c.lineTo(px + sw, -36); c.stroke(); c.fillStyle = `rgba(255,200,110,${0.6 + 0.35 * pr})`; rr(c, px - 2.2 + sw, -36, 4.4, 5, 1.5); c.fill(); });
+      // schwebendes Symbol-Licht und aufsteigende Funken
+      const oy = -66 - 2 * Math.sin(t * 1.8 + i); c.fillStyle = col; c.globalAlpha = 0.9; c.beginPath(); c.arc(0, oy, 3.2, 0, TAU); c.fill(); c.globalAlpha = 1; c.fillStyle = '#fff'; c.beginPath(); c.arc(0, oy, 1.3, 0, TAU); c.fill();
+      for (let s2 = 0; s2 < 4; s2++) { const ph = (t * 0.5 + s2 / 4 + i * 0.13) % 1; c.globalAlpha = 1 - ph; c.fillStyle = col; c.beginPath(); c.arc(Math.sin(ph * 9 + s2) * 5, -28 - ph * 30, 1.1, 0, TAU); c.fill(); }
+      c.globalAlpha = 1; c.restore();
     }
     // Schrein-Vorschau für den Shop: kleiner Steinaltar mit Symbol-Flamme in der Farbe des Effekts
     function drawShrine(cv, k, age) {
@@ -1479,6 +1518,8 @@
         c.stroke(); c.setLineDash([]);
       }
       if (v.lastLand) flag(v.x0 + v.lastLand.x * v.scale, gy, '#4ccf6a', v.lastLand.text, 30);
+      // Schreine direkt hinter der Kanone (je gekaufter Art einer)
+      if (!v.chal || v.chal.train) (v.shrineK || []).forEach((k, i, a) => drawShrineScene(Math.max(22, v.x0 - 46) + i * 52, gy - 9, k, v.time, i));
       // Kanone und Spieler
       (v.events || []).forEach(e => drawWeather(v, e));
       if (v.ageFx) { // alte Kanone schrumpft und glüht, neue springt mit Überschwingen heraus

@@ -190,6 +190,7 @@
     { id: 'spitze',  br: 'Munition',   icon: '🏹', name: 'Stahlspitzen',      max: 4,  base: 3, eff: l => 'Pfeil ×' + String(3 + 0.5 * l).replace('.', ',') + ' Schaden an Hindernissen' },
     { id: 'zuender', br: 'Munition',   icon: '💣', name: 'Doppelzünder',      max: 4,  base: 4, eff: l => 'Sprengkugel: Explosion ' + (60 + 15 * l) + ' % Flächenschaden, größerer Radius' },
     { id: 'bohrkopf', br: 'Munition',  icon: '🔩', name: 'Diamantbohrer',     max: 3,  base: 4, eff: l => 'Bohrkugel durchbohrt ' + (3 + l) + ' Teile' },
+    { id: 'magnetfeld', br: 'Munition', icon: '🧲', name: 'Starkmagnet',      max: 4,  base: 3, eff: l => 'Magnetkugel zieht Sterne aus ' + (100 + 30 * l) + ' % Entfernung an' },
     { id: 'goldguss', br: 'Munition',  icon: '💰', name: 'Goldguss',          max: 3,  base: 5, eff: l => 'Goldkugel ×' + (3 + l) + ' Gold' },
     // Farm (Nico): dauerhafte Farm-Upgrades, gelten für jede neue Farm nach dem Zeitsprung
     { id: 'daumen',  br: 'Farm',       icon: '🌾', name: 'Grüner Daumen',     max: 6,  base: 4, eff: l => 'Farm-Ernte +' + pc(P.wsDaumen * l) + ' %' },
@@ -258,6 +259,7 @@
     { id: 'bohrer', icon: '🔩', name: 'Bohrkugel',    price: 1.6, desc: 'Durchbohrt bis zu 3 Teile und macht an jedem vollen Schaden.' },
     { id: 'huepf',  icon: '🏀', name: 'Hüpfkugel',    price: 0.6, desc: 'Springt nach der Landung noch 3-mal weiter.' },
     { id: 'gold',   icon: '💰', name: 'Goldkugel',    price: 1.3, desc: 'Dreifaches Gold für diesen Schuss.' },
+    { id: 'magnet', icon: '🧲', name: 'Magnetkugel',  price: 0.9, desc: 'Zieht goldene Sterne in der Nähe an.' },
   ];
   // Beschreibung mit den Werten der Zeitwerkstatt-Munitions-Upgrades
   function ammoDesc(s, id) {
@@ -266,7 +268,8 @@
       spreng: 'Trifft sie ein Hindernis, macht sie Schaden und explodiert: ' + (60 + 15 * W_('zuender')) + ' % Flächenschaden an den Teilen daneben. Am Boden explodiert sie und schleudert sich weit nach vorn.',
       bohrer: 'Durchbohrt bis zu ' + (3 + W_('bohrkopf')) + ' Teile und macht an jedem vollen Schaden.',
       huepf: 'Springt nach der Landung noch ' + (3 + W_('huepfer')) + '-mal weiter.',
-      gold: (3 + W_('goldguss')) + '-faches Gold für diesen Schuss.' })[id] || AMMO.find(a => a.id === id).desc;
+      gold: (3 + W_('goldguss')) + '-faches Gold für diesen Schuss.',
+      magnet: 'Zieht goldene Sterne in der Nähe an' + (W_('magnetfeld') ? ' (Reichweite +' + 30 * W_('magnetfeld') + ' %)' : '') + '.' })[id] || AMMO.find(a => a.id === id).desc;
   }
   const AMMO_PACK = 5;
   const goldUnit = s => Math.max(1, Math.round(P.g0 * Math.pow(ageRange(s.age) * 10, P.gExp) * Math.pow(P.gluckF, s.lv.gluck)));
