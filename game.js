@@ -4,7 +4,7 @@
   const J = window.JS;
   const $ = q => document.querySelector(q);
   const SAVE = 'jushoot-v2', SCORES = 'jushoot-scores';
-  const VERSION = '0.8.1'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
+  const VERSION = '0.8.2'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
   const G = 9.81e-3; // km/s²
 
   // ---------- Speichern ----------
@@ -878,17 +878,17 @@
       $('#farmUi').addEventListener('click', farmClick);
     }
     farmR.resize(); farmSig = ''; renderFarm();
-    if (!s.farm.sold && !s.farm.tip) { s.farm.tip = 1; toast('🌾 Willkommen auf der Farm! Tippe ein Beet an: <b>säen</b>, dann <b>gießen</b>, später <b>ernten</b>. Die Ernte verkaufst du unten für Gold.'); }
+    if (!s.farm.sold && !s.farm.tip) { s.farm.tip = 1; toast('🌾 Willkommen auf der Farm! Tippe ein Beet an: <b>säen</b>, dann <b>gießen</b>, später <b>ernten</b>. Wachsende Beete antippen lässt sie schneller wachsen. Die Ernte verkaufst du unten für Gold.'); }
   }
   function farmTap(e) {
     const r = e.currentTarget.getBoundingClientRect(), i = farmR.slotAt(e.clientX - r.left, e.clientY - r.top), f = s.farm;
     if (i < 0) return;
-    if (i >= f.plots.length) { if (i === f.plots.length) { if (J.buyPlot(s)) { sfx('buy'); toast('Neues Beet angelegt (' + f.plots.length + '/' + J.FARM_MAX + ')'); save(); renderFarm(); } else toast('Ein neues Beet kostet ' + COIN() + ' ' + J.fmtNum(J.plotCost(s))); } return; }
+    if (i >= f.plots.length) { if (i === f.plots.length) { if (s.age < J.plotAge(i)) { toast('🔒 Dieses Beet gibt es erst ab der ' + esc(J.AGES[J.plotAge(i)].name)); return; } if (J.buyPlot(s)) { sfx('buy'); toast('Neues Beet angelegt (' + f.plots.length + '/' + J.FARM_MAX + ')'); save(); renderFarm(); } else toast('Ein neues Beet kostet ' + COIN() + ' ' + J.fmtNum(J.plotCost(s))); } return; }
     const res = J.farmAct(s, i);
     if (!res) return;
     if (res.err === 'seed') { toast('Kein Saatgut für ' + CROP_IC[f.sel] + ' ' + esc(J.cropOf(f.sel).name) + '. Kauf unten neues.'); sfx('bad'); return; }
     if (res.act === 'wait') { const p = f.plots[i], cr = J.cropOf(p.crop); toast(CROP_IC[p.crop] + ' ' + esc(cr.name) + ' wächst noch ' + Math.ceil(cr.time - p.t) + ' s'); return; }
-    farmR.act(i, res.act, res.crop, res.crop ? J.cropOf(res.crop).name : ''); sfx(res.act === 'harvest' ? 'star' : 'tap'); renderFarm();
+    farmR.act(i, res.act, res.crop, res.crop ? J.cropOf(res.crop).name : ''); sfx(res.act === 'harvest' ? 'star' : 'tap'); if (res.act !== 'tend') renderFarm();
   }
   function farmClick(e) {
     const b = e.target.closest('button'); if (!b || b.disabled) return;
@@ -925,7 +925,7 @@
     const cr = J.cropOf(f.sel), sc = J.seedCost(s, f.sel);
     h += `<div class="card upg"><div class="ammo-ic">${CROP_IC[f.sel]}</div><div class="info"><div class="name">Saatgut: ${esc(cr.name)}</div><div class="muted">wächst ${Math.round(cr.time / J.growSpeed(s))} s · bringt je Beet ${COIN()} ${J.fmtNum(Math.max(1, J.sellPrice(s, f.sel)))}</div></div>
       <div class="col-btns"><button class="btn" data-fseed="${f.sel}" data-n="1" ${s.gold >= sc ? '' : 'disabled'}>${J.SEED_PACK}× ${COIN()} ${J.fmtNum(sc)}</button><button class="btn sec" data-fseed="${f.sel}" data-n="4" ${s.gold >= sc * 4 ? '' : 'disabled'}>${J.SEED_PACK * 4}× ${COIN()} ${J.fmtNum(sc * 4)}</button></div></div>`;
-    if (f.plots.length < J.FARM_MAX) { const pc = J.plotCost(s); h += `<div class="card upg"><div class="ammo-ic">🟫</div><div class="info"><div class="name">Neues Beet <span class="muted">· ${f.plots.length}/${J.FARM_MAX}</span></div><div class="muted">Mehr Beete, mehr Ernte.</div></div><button class="btn" data-fplot ${s.gold >= pc ? '' : 'disabled'}>${COIN()} ${J.fmtNum(pc)}</button></div>`; }
+    if (f.plots.length < J.FARM_MAX) { const pc = J.plotCost(s), la = J.plotAge(f.plots.length), lock = s.age < la; h += `<div class="card upg"><div class="ammo-ic">🟫</div><div class="info"><div class="name">Neues Beet <span class="muted">· ${f.plots.length}/${J.FARM_MAX}</span></div><div class="muted">${lock ? '🔒 erst ab der ' + esc(J.AGES[la].name) : 'Mehr Beete, mehr Ernte. Jedes weitere Beet wird deutlich teurer.'}</div></div><button class="btn" data-fplot ${!lock && s.gold >= pc ? '' : 'disabled'}>${COIN()} ${J.fmtNum(pc)}</button></div>`; }
     { const fl = f.fert || 0, fc = J.fertCost(s);
       h += `<div class="card upg"><div class="ammo-ic">🧪</div><div class="info"><div class="name">Dünger <span class="muted">· ${fl ? 'Stufe ' + fl + '/' + J.FERT_MAX : 'nicht gekauft'}</span></div><div class="muted">Saat wächst schneller: ${fl ? '+' + Math.round(fl * 30) + ' %' : 'normal'}${fl < J.FERT_MAX ? ', nächste Stufe +' + Math.round((fl + 1) * 30) + ' %' : ''}</div></div>
         ${fl >= J.FERT_MAX ? '<span>✅</span>' : `<button class="btn" data-ffert ${s.gold >= fc ? '' : 'disabled'}>${COIN()} ${J.fmtNum(fc)}</button>`}</div>`; }
