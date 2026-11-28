@@ -1,7 +1,7 @@
 // Epochenschuss Service Worker
 // Eigene Dateien "network first" (online immer die neueste Version), offline aus dem Cache.
 // Schriften "cache first". Bei jeder Veröffentlichung VERSION erhöhen, damit alte Caches verschwinden.
-const VERSION = '0.8.3';
+const VERSION = '0.8.4';
 const CACHE = 'es-' + VERSION;
 const FONTS = 'es-fonts';
 const APP = [
