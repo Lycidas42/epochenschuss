@@ -878,7 +878,7 @@
     function drawPlayer(v, x, gy, age, t, pose, skin, act) {
       skin = skin || 0; act = act || 0;
       const O = OUTFIT[age], kid = skin === 2, fem = skin === 1, skinCol = age === 8 ? '#f0c79a' : ['#f0c79a', '#e8b98a', '#f3cfa5'][skin];
-      const type = ACTION[age];
+      const cheer = pose === 'cheer', type = cheer ? 'cheer' : ACTION[age];
       // Bewegung: k = Zugstärke 0..1 (schnell ziehen, langsam zurück), aim = bereit machen
       const u = 1 - act, k = pose === 'fire' ? (u < 0.25 ? Math.sin(u / 0.25 * Math.PI / 2) : Math.max(0, 1 - (u - 0.25) / 0.75)) : 0;
       const aim = pose === 'aim' ? 1 : 0, breathe = Math.sin(t * 2.2) * 0.6;
@@ -927,11 +927,19 @@
       if (!fem && !kid && [0, 2, 4].includes(age)) { c.fillStyle = O.hair; c.beginPath(); c.moveTo(-3, hy + 2); c.quadraticCurveTo(2, hy + 11, 7, hy + 3); c.lineTo(6, hy + 1); c.quadraticCurveTo(2, hy + 5, -2, hy + 1); c.fill(); }
       // Haare vorne / Kopfbedeckung
       hat(age, hy, O, fem, kid);
+      if (cheer) { // Siegerkrone
+        c.save(); c.translate(0, hy - 10); c.rotate(-0.1); c.fillStyle = '#ffd23f'; c.strokeStyle = '#b8860b'; c.lineWidth = 0.8;
+        c.beginPath(); c.moveTo(-8, 0); c.lineTo(-8, -9); c.lineTo(-4, -4); c.lineTo(0, -11); c.lineTo(4, -4); c.lineTo(8, -9); c.lineTo(8, 0); c.closePath(); c.fill(); c.stroke();
+        [['#e2473b', -4], ['#4be3ff', 0], ['#5ee07a', 4]].forEach(([cl, xx]) => { c.fillStyle = cl; c.beginPath(); c.arc(xx, -2, 1.3, 0, TAU); c.fill(); });
+        const sp = (t * 1.2) % 2.4; if (sp < 1) { c.fillStyle = `rgba(255,255,255,${1 - sp})`; c.beginPath(); c.arc(0, -11, 1 + sp * 2, 0, TAU); c.fill(); }
+        c.restore();
+      }
       c.restore();
       // Arme: hinterer Arm hält mit, vorderer zieht/drückt
       const sx = 3 + Math.sin(lean) * 16, sy = -31 + (1 - Math.cos(lean)) * 16;
       let hx = 12, hy2 = -22, tool = null;
-      if (type === 'sling') { hx = 18 + 2 * aim - 6 * k; hy2 = -36 - 3 * aim - 4 * k; }
+      if (cheer) { hx = 14 + Math.sin(t * 8) * 3; hy2 = -62 + Math.cos(t * 8) * 2; }
+      else if (type === 'sling') { hx = 18 + 2 * aim - 6 * k; hy2 = -36 - 3 * aim - 4 * k; }
       else if (type === 'rope') { hx = 14 + 2 * aim - 12 * k; hy2 = -24 + 2 * k; tool = 'rope'; }
       else if (type === 'torch') { hx = 10 + 4 * aim + 8 * k; hy2 = -28 + 2 * k; tool = 'torch'; }
       else if (type === 'lever') { const la = -0.3 + 0.9 * k; hx = 17 + Math.sin(la) * 26; hy2 = -6 - Math.cos(la) * 26; tool = 'lever'; }
@@ -941,7 +949,8 @@
         c.strokeStyle = '#d9c9a0'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(hx, hy2); const tx = 24, ty = -12; c.quadraticCurveTo((hx + tx) / 2, Math.max(hy2, ty) + 6 * (1 - k) * (1 - aim), tx, ty); c.stroke();
       }
       const sleeve = age === 8 ? O.top : age === 0 || age === 3 ? skinCol : O.top;
-      arm(sx - 3, sy, hx - 4, hy2 + 2, sleeve, 4, -1);
+      if (cheer) { const [bx, by] = arm(sx - 6, sy, -12 - Math.sin(t * 8 + 1) * 3, -62 + Math.cos(t * 8 + 1) * 2, sleeve, 4, 1); c.fillStyle = age === 8 ? '#c4ccd9' : skinCol; c.beginPath(); c.arc(bx, by, 2.6, 0, TAU); c.fill(); }
+      else arm(sx - 3, sy, hx - 4, hy2 + 2, sleeve, 4, -1);
       const [ax, ay] = arm(sx, sy, hx, hy2, sleeve, 4, -1);
       c.fillStyle = age === 8 ? '#c4ccd9' : skinCol; c.beginPath(); c.arc(ax, ay, 2.6, 0, TAU); c.fill();
       if (tool === 'torch') { // Luntenstock mit glühender Spitze
@@ -1597,9 +1606,28 @@
     }
 
     // ---------- Siegesshow (1.000 km) ----------
+    // Jubelnde Menschenmenge: bunte Figuren, die hüpfen und winken (ausgespart wird die Lücke vor dem Podest)
+    function crowd(G, s, footY, t, seed, gap) {
+      const step = 17 * s, n = Math.ceil(W / step) + 1, skins = ['#f0c79a', '#e8b98a', '#c68a5a', '#8a5a3a', '#f3cfa5'], shirts = ['#e2473b', '#2f6fb2', '#5ee07a', '#ffd23f', '#b58cff', '#ff8a3d', '#4be3ff', '#ff5ab4'], hairs = ['#3b2414', '#1b1a19', '#c98a3e', '#7a3a1a', '#e8d070'];
+      for (let i = 0; i < n; i++) {
+        const x = i * step + (hsh(i + seed) - 0.5) * step * 0.5; if (gap && Math.abs(x - G.cx) < gap) continue;
+        const ph = hsh(i * 3 + seed) * 6, jump = Math.max(0, Math.sin(t * 7 + ph)) * 5 * s, sz = s * (0.85 + hsh(i * 7 + seed) * 0.3), y = footY - jump;
+        c.save(); c.translate(x, y); c.scale(sz, sz);
+        const sh = shirts[Math.floor(hsh(i * 5 + seed) * shirts.length)], sk = skins[Math.floor(hsh(i * 11 + seed) * skins.length)];
+        c.strokeStyle = '#2a2e3a'; c.lineWidth = 4; c.lineCap = 'round'; c.beginPath(); c.moveTo(-3, -14); c.lineTo(-4, 0); c.moveTo(3, -14); c.lineTo(4, 0); c.stroke();
+        c.fillStyle = sh; rr(c, -7, -32, 14, 20, 5); c.fill();
+        const w1 = Math.sin(t * 9 + ph) * 0.5, up = hsh(i * 13 + seed) > 0.25; c.strokeStyle = sh; c.lineWidth = 3.5;
+        c.beginPath(); c.moveTo(-6, -29); c.lineTo(-6 - Math.sin(0.5 + w1) * 9, -29 - (up ? Math.cos(0.5 + w1) * 12 : -8)); c.moveTo(6, -29); c.lineTo(6 + Math.sin(0.5 - w1) * 9, -29 - Math.cos(0.5 - w1) * 12); c.stroke();
+        c.fillStyle = sk; c.beginPath(); c.arc(-6 - Math.sin(0.5 + w1) * 9, -29 - (up ? Math.cos(0.5 + w1) * 12 : -8), 2.3, 0, TAU); c.arc(6 + Math.sin(0.5 - w1) * 9, -29 - Math.cos(0.5 - w1) * 12, 2.3, 0, TAU); c.fill();
+        c.beginPath(); c.arc(0, -38, 6.5, 0, TAU); c.fill(); c.fillStyle = hairs[Math.floor(hsh(i * 17 + seed) * hairs.length)]; c.beginPath(); c.arc(0, -40, 6.7, Math.PI * 1.05, Math.PI * 1.95); c.fill();
+        c.fillStyle = '#3b2414'; c.beginPath(); c.arc(0, -36, 2.4, 0, Math.PI); c.fill();
+        if (hsh(i * 19 + seed) > 0.8) { c.strokeStyle = '#6b4423'; c.lineWidth = 1; const fx = 6 + Math.sin(0.5 - w1) * 9, fy = -29 - Math.cos(0.5 - w1) * 12; c.beginPath(); c.moveTo(fx, fy); c.lineTo(fx, fy - 14); c.stroke(); c.fillStyle = shirts[(i + 3) % shirts.length]; c.beginPath(); c.moveTo(fx, fy - 14); c.lineTo(fx + 10 + Math.sin(t * 8 + i) * 2, fy - 11); c.lineTo(fx, fy - 8); c.fill(); }
+        c.restore();
+      }
+    }
     function drawWinFx(v) {
       const f = v.winFx; if (!f) return;
-      const t = f.t, fade = t > 9.8 ? Math.max(0, (10.5 - t) / 0.7) : 1;
+      const t = f.t, fade = t > 12.3 ? Math.max(0, (13 - t) / 0.7) : 1;
       c.fillStyle = `rgba(8,4,24,${Math.min(0.55, t * 0.5) * fade})`; c.fillRect(0, 0, W, H);
       // Flugzeug schreibt mit Rauch in den Himmel
       const text = 'Du hast es geschafft!', fs = Math.max(20, Math.min(54, W / 11)), ty = Math.max(fs, v.groundY * 0.2);
@@ -1610,7 +1638,7 @@
         c.lineJoin = 'round'; c.strokeStyle = 'rgba(255,255,255,0.35)'; c.lineWidth = fs * 0.28; c.strokeText(text, W / 2, ty);
         c.strokeStyle = 'rgba(255,255,255,0.6)'; c.lineWidth = fs * 0.12; c.strokeText(text, W / 2, ty);
         c.fillStyle = '#fffdf5'; c.fillText(text, W / 2, ty); c.restore();
-        if (t < 5) { // Flugzeug mit Rauchfahne
+        if (t < 4.6) { // Flugzeug mit Rauchfahne
           const py = ty + Math.sin(t * 6) * 4 - fs * 0.1;
           c.save(); c.translate(px, py);
           c.fillStyle = '#e2473b'; rr(c, -26, -6, 46, 12, 6); c.fill(); c.fillStyle = '#fff'; c.fillRect(-20, -1.5, 34, 3);
@@ -1622,36 +1650,36 @@
           for (let k = 0; k < 6; k++) { c.fillStyle = `rgba(255,255,255,${0.5 - k * 0.08})`; c.beginPath(); c.arc(px - 34 - k * 12, py + Math.sin(t * 8 + k) * 3, 5 + k * 1.5, 0, TAU); c.fill(); }
         }
       }
-      // Riesiger Smiley mit Krone steigt auf und hüpft
-      if (t > 3.8) {
-        const k = Math.min(1, (t - 3.8) / 0.9), ease = 1 - Math.pow(1 - k, 3), bounce = k >= 1 ? Math.abs(Math.sin((t - 4.7) * 3.2)) * 10 : 0;
-        const R = Math.min(W * 0.2, v.groundY * 0.28, 150), cx = W / 2, tgt = Math.min(v.groundY - R * 0.6, ty + fs * 0.7 + R * 1.5), cy0 = H + R * 1.2;
-        const yy = cy0 + (tgt - cy0) * ease - bounce;
-        c.save(); c.globalAlpha = fade; c.translate(cx, yy); c.rotate(Math.sin(t * 2.4) * 0.06);
-        const gl = c.createRadialGradient(0, 0, R * 0.8, 0, 0, R * 1.6); gl.addColorStop(0, 'rgba(255,230,120,0.5)'); gl.addColorStop(1, 'rgba(255,230,120,0)'); c.fillStyle = gl; c.beginPath(); c.arc(0, 0, R * 1.6, 0, TAU); c.fill();
-        const fg = c.createRadialGradient(-R * 0.3, -R * 0.35, R * 0.1, 0, 0, R); fg.addColorStop(0, '#fff3a0'); fg.addColorStop(1, '#ffc21a');
-        c.fillStyle = fg; c.beginPath(); c.arc(0, 0, R, 0, TAU); c.fill(); c.strokeStyle = '#d99a00'; c.lineWidth = R * 0.05; c.stroke();
-        const wink = (t % 2.6) > 2.35;
-        c.fillStyle = '#3b2400'; c.beginPath(); c.ellipse(-R * 0.35, -R * 0.2, R * 0.1, R * 0.16, 0, 0, TAU); c.fill();
-        if (wink) { c.strokeStyle = '#3b2400'; c.lineWidth = R * 0.06; c.beginPath(); c.moveTo(R * 0.22, -R * 0.2); c.lineTo(R * 0.48, -R * 0.2); c.stroke(); } else { c.beginPath(); c.ellipse(R * 0.35, -R * 0.2, R * 0.1, R * 0.16, 0, 0, TAU); c.fill(); }
-        c.fillStyle = '#fff'; c.beginPath(); c.arc(-R * 0.32, -R * 0.26, R * 0.035, 0, TAU); c.fill();
-        c.fillStyle = 'rgba(255,120,90,0.45)'; [-1, 1].forEach(sd => { c.beginPath(); c.ellipse(sd * R * 0.6, R * 0.12, R * 0.13, R * 0.08, 0, 0, TAU); c.fill(); });
-        c.fillStyle = '#7a2a10'; c.beginPath(); c.arc(0, R * 0.08, R * 0.55, 0.15 * Math.PI, 0.85 * Math.PI); c.closePath(); c.fill();
-        c.fillStyle = '#ff7a8a'; c.beginPath(); c.ellipse(0, R * 0.5, R * 0.22, R * 0.1, 0, 0, TAU); c.fill();
-        // Krone
-        c.save(); c.translate(0, -R * 0.92); c.rotate(-0.12);
-        const cw = R * 0.95, ch = R * 0.55;
-        c.fillStyle = '#ffd23f'; c.strokeStyle = '#b8860b'; c.lineWidth = R * 0.03;
-        c.beginPath(); c.moveTo(-cw / 2, 0); c.lineTo(-cw / 2, -ch * 0.7); c.lineTo(-cw / 4, -ch * 0.3); c.lineTo(0, -ch); c.lineTo(cw / 4, -ch * 0.3); c.lineTo(cw / 2, -ch * 0.7); c.lineTo(cw / 2, 0); c.closePath(); c.fill(); c.stroke();
-        c.fillStyle = '#e2b12a'; c.fillRect(-cw / 2, -ch * 0.18, cw, ch * 0.18);
-        [['#e2473b', -cw / 4], ['#4be3ff', 0], ['#5ee07a', cw / 4]].forEach(([col, x]) => { c.fillStyle = col; c.beginPath(); c.arc(x, -ch * 0.09, R * 0.06, 0, TAU); c.fill(); });
-        [[-cw / 2, -ch * 0.7], [0, -ch], [cw / 2, -ch * 0.7]].forEach(([x, y]) => { c.fillStyle = '#fff6c0'; c.beginPath(); c.arc(x, y, R * 0.05, 0, TAU); c.fill(); });
-        const sp = (t * 1.3) % 3; star(-cw / 2 + sp * cw / 2, -ch * 0.75, R * 0.08 * (1 + Math.sin(t * 9) * 0.3), t * 3, '#ffffff');
-        c.restore(); c.restore();
+      // Siegerehrung: Podest steigt auf, der Schütze steht oben mit Krone, die Menge jubelt, Konfettikanonen schießen auf ihn
+      if (t > 3.6 && f.geo) {
+        const G = f.geo, S = G.S, k = Math.min(1, (t - 3.6) / 1.0), ease = 1 - Math.pow(1 - k, 3), dy = (1 - ease) * (H - G.base + 140 * S);
+        c.save(); c.globalAlpha = fade; c.translate(0, dy);
+        // Scheinwerferkegel
+        [-1, 1].forEach(sd => { const sx = G.cx + sd * W * 0.45, a = Math.sin(t * 1.3 + sd) * 0.12; c.save(); c.translate(sx, G.base); c.rotate(a); const lg = c.createLinearGradient(0, 0, -sd * (W * 0.45), -G.base * 0.7); lg.addColorStop(0, 'rgba(255,250,200,0.35)'); lg.addColorStop(1, 'rgba(255,250,200,0)'); c.fillStyle = lg; c.beginPath(); c.moveTo(0, 0); c.lineTo(-sd * W * 0.45 - 40 * S, -G.base); c.lineTo(-sd * W * 0.45 + 40 * S, -G.base); c.fill(); c.restore(); });
+        // hintere Reihe der Menge
+        crowd(G, S * 0.62, G.base, t, 0, G.podW * 0.62);
+        // Podest 2 – 1 – 3
+        const pw = G.podW / 3, cols = [['#c0c6cf', '#8d939b', '2'], ['#ffd23f', '#d9a20f', '1'], ['#d9905a', '#a8642e', '3']], hs = [G.podH * 0.65, G.podH, G.podH * 0.45];
+        [0, 1, 2].forEach(q => { const x = G.cx - G.podW / 2 + q * pw, h = hs[q], y = G.base - h, gr = c.createLinearGradient(x, 0, x + pw, 0); gr.addColorStop(0, cols[q][0]); gr.addColorStop(1, cols[q][1]); c.fillStyle = gr; c.fillRect(x, y, pw, h);
+          c.fillStyle = 'rgba(255,255,255,0.35)'; c.fillRect(x, y, pw, 3 * S); c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(x + pw - 2 * S, y, 2 * S, h);
+          c.fillStyle = 'rgba(255,255,255,0.9)'; c.font = `800 ${Math.round(Math.min(h * 0.6, 18 * S))}px Fredoka, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(cols[q][2], x + pw / 2, y + h * 0.55); });
+        c.fillStyle = '#a8322a'; c.fillRect(G.cx - G.podW / 2 - 6 * S, G.base - 3 * S, G.podW + 12 * S, 3 * S);
+        // Schütze mit Krone auf Platz 1
+        c.save(); c.translate(G.cx, G.top); c.scale(S, S); drawPlayer({ big: true }, 0, 0, v.age, t, 'cheer', (v.skins || {})[v.age], 0); c.restore();
+        // Konfetti der Kanonen
+        (f.blast || []).forEach(p => { c.save(); c.translate(p.x, p.y); c.rotate(p.rot); c.fillStyle = p.col; c.fillRect(-p.w / 2, -p.w / 4, p.w, p.w / 2); c.restore(); });
+        // vordere Reihe der Menge
+        crowd(G, S * 0.7, H + 8 * S, t, 7, 0);
+        // Konfettikanonen links und rechts
+        G.cannons.forEach(cn => { const rec = Math.max(0, cn.kick || 0) * 8 * S; c.save(); c.translate(cn.x, cn.y); c.fillStyle = '#5a3a1f'; c.beginPath(); c.arc(0, 4 * S, 7 * S, 0, TAU); c.fill(); c.fillStyle = '#8a5a2b'; c.beginPath(); c.arc(0, 4 * S, 3 * S, 0, TAU); c.fill();
+          c.rotate(cn.ang); c.translate(-rec, 0); const bg = c.createLinearGradient(0, -5 * S, 0, 5 * S); bg.addColorStop(0, '#ff7ad9'); bg.addColorStop(1, '#b8329a'); c.fillStyle = bg; rr(c, -6 * S, -5 * S, 26 * S, 10 * S, 4 * S); c.fill();
+          ['#ffd23f', '#4be3ff', '#5ee07a'].forEach((sc, q) => { c.fillStyle = sc; c.fillRect(q * 7 * S - 2 * S, -5 * S, 2.5 * S, 10 * S); }); c.fillStyle = '#2a1030'; c.beginPath(); c.ellipse(20 * S, 0, 2 * S, 5 * S, 0, 0, TAU); c.fill();
+          if ((cn.kick || 0) > 0.6) { c.fillStyle = 'rgba(255,255,255,0.8)'; c.beginPath(); c.arc(24 * S, 0, 6 * S * cn.kick, 0, TAU); c.fill(); } c.restore(); });
+        c.restore();
       }
       // Konfetti
       f.conf.forEach(p => { c.save(); c.globalAlpha = fade; c.translate(p.x, p.y); c.rotate(p.rot); c.fillStyle = p.col; c.fillRect(-p.w / 2, -p.w / 4, p.w, p.w / 2); c.restore(); });
-      if (t > 2.5 && t < 9.8) { c.font = '600 12px Fredoka, system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'bottom'; c.fillStyle = 'rgba(255,255,255,0.7)'; c.fillText('Tippen zum Überspringen', W / 2, H - 8); }
+      if (t > 2.5 && t < 12.3) { c.font = '600 12px Fredoka, system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'bottom'; c.fillStyle = 'rgba(255,255,255,0.7)'; c.fillText('Tippen zum Überspringen', W / 2, H - 8); }
     }
 
     // Untergrund der Höhen-Ziele: Pfosten am Boden, Podest auf Stützen, Aufzug mit Schiene und Seil

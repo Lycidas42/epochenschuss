@@ -4,7 +4,7 @@
   const J = window.JS;
   const $ = q => document.querySelector(q);
   const SAVE = 'jushoot-v2', SCORES = 'jushoot-scores';
-  const VERSION = '0.8.4'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
+  const VERSION = '0.8.5'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
   const G = 9.81e-3; // km/s²
 
   // ---------- Speichern ----------
@@ -1110,7 +1110,7 @@
     }
   }
 
-  // Große Siegesshow bei 1.000 km: Riesenfeuerwerk, Flugzeug schreibt in den Himmel, Smiley mit Krone, Konfetti
+  // Große Siegesshow bei 1.000 km: Riesenfeuerwerk, Flugzeug schreibt in den Himmel, Schütze mit Krone auf dem Podest, jubelnde Menge, Konfettikanonen
   function startWinShow() {
     if (phase !== 'idle' && phase !== 'land') return showWin();
     if (stageView !== 'cannon') setStageView('cannon');
@@ -1121,7 +1121,7 @@
   function winFxStep(dt) {
     const f = view.winFx; f.t += dt; f.next -= dt;
     const cols = ['#ff5ab4', '#ffd23f', '#5ee07a', '#4be3ff', '#ff8a3d', '#b58cff', '#ffffff'];
-    if (f.t < 9.2 && f.next <= 0) {
+    if (f.t < 11.7 && f.next <= 0) {
       f.next = 0.07 + Math.random() * 0.14;
       f.rockets.push({ x: view.W * (0.08 + Math.random() * 0.84), y: view.groundY, vy: -(view.groundY * (1.4 + Math.random() * 0.6)), ty: view.groundY * (0.08 + Math.random() * 0.4), col: cols[Math.floor(Math.random() * 6)], big: Math.random() < 0.3 });
       if (Math.random() < 0.4) sfx('boost');
@@ -1134,7 +1134,22 @@
     if (f.conf.length < 140 && f.t > 0.5) for (let k = 0; k < 3; k++) f.conf.push({ x: Math.random() * view.W, y: -10, vx: (Math.random() - 0.5) * 40, vy: 50 + Math.random() * 70, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 10, col: cols[Math.floor(Math.random() * 7)], w: 4 + Math.random() * 4 });
     f.conf.forEach(p => { p.x += (p.vx + Math.sin(f.t * 3 + p.rot) * 30) * dt; p.y += p.vy * dt; p.rot += p.vr * dt; if (p.y > view.H + 10) { p.y = -10; p.x = Math.random() * view.W; } });
     if (f.t > 4.2 && !f.boom) { f.boom = true; sfx('up'); view.shake = 0.5; }
-    if (f.t > 10.5) endWinShow();
+    // Siegerehrung: Podest mit Schütze, jubelnde Menge, Konfettikanonen schießen auf ihn
+    const W = view.W, gy = view.groundY, S = Math.max(1.3, Math.min(2.2, Math.min(W * 1.1, gy) / 200)), podH = 42 * S;
+    const G = f.geo = { S, cx: W / 2, base: gy, podW: 66 * S, podH, top: gy - podH, cannons: f.geo ? f.geo.cannons : null };
+    const head = { x: G.cx, y: G.top - 50 * S }, off = Math.min(W * 0.36, 150 * S);
+    if (!G.cannons) G.cannons = [-1, 1].map(sd => ({ sd, kick: 0 }));
+    G.cannons.forEach(cn => { cn.x = G.cx + cn.sd * off; cn.y = gy - 14 * S; cn.ang = Math.atan2(head.y - cn.y, head.x - cn.x); cn.kick = Math.max(0, (cn.kick || 0) - dt * 3); });
+    f.blast = f.blast || [];
+    if (f.t > 4.9 && f.t < 12 && (f.nextCan = (f.nextCan || 0) - dt) <= 0) {
+      f.nextCan = 0.55; const cn = G.cannons[(f.canI = (f.canI || 0) + 1) % 2]; cn.kick = 1; sfx('boost');
+      const mx = cn.x + Math.cos(cn.ang) * 24 * S, my = cn.y + Math.sin(cn.ang) * 24 * S, dist = Math.hypot(head.x - mx, head.y - my), g = 260 * S;
+      for (let q = 0; q < 34; q++) { const sp = (dist / 0.75) * (0.75 + Math.random() * 0.5), a = cn.ang + (Math.random() - 0.5) * 0.45 + 0.18 * cn.sd;
+        const ax = Math.cos(a) * sp, ay = Math.sin(a) * sp; f.blast.push({ x: mx, y: my, vx: ax, vy: ay, g, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 16, col: cols[Math.floor(Math.random() * 7)], w: (3 + Math.random() * 3) * S * 0.7, life: 2.2 }); }
+    }
+    f.blast.forEach(p => { p.vx *= Math.pow(0.35, dt); p.vy = p.vy * Math.pow(0.35, dt) + p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt; p.life -= dt; });
+    f.blast = f.blast.filter(p => p.life > 0 && p.y < view.H + 20);
+    if (f.t > 13) endWinShow();
   }
   function endWinShow() { if (phase !== 'win') return; view.winFx = null; phase = 'idle'; view.ball = null; view.flyers = []; shot = null; spawnStars(); updateFire(); computePreview(); showWin(); }
   function showWin() {
@@ -1332,6 +1347,6 @@
   if (away && away.dt > 30) offlineToast(away);
   if (s.shots === 0) toast('Tippe <b>Laden</b>, dann im <b style="color:#5ee07a">grünen Bereich</b> auslösen. Triff jedes Teil der Hindernisse.');
   // Nur in der Entwickler-Version: Zugriff für automatische Tests in der Konsole
-  if (DEV) window.ES = { spawnEvent, get s() { return s; }, view, J, startChallenge, setStageView, onFire, release, startRift, trainDone: () => trainDone(), setAngle, setPower, jumpToAge, doJump, renderAll, get phase() { return phase; } };
+  if (DEV) window.ES = { spawnEvent, get s() { return s; }, view, J, startChallenge, setStageView, onFire, release, startRift, trainDone: () => trainDone(), setAngle, setPower, jumpToAge, doJump, startWinShow, renderAll, get phase() { return phase; } };
   requestAnimationFrame(frame);
 })();
