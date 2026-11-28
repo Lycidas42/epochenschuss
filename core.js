@@ -176,7 +176,6 @@
     { id: 'stamm',   br: 'Erbe',       icon: '🧑‍🔧', name: 'Stammarbeiter',     max: 5,  base: 6, eff: l => '+' + l + ' Arbeiter in jeder freigeschalteten Ressource' },
     { id: 'kiste',   br: 'Erbe',       icon: '🔨', name: 'Werkzeugkiste',     max: 3,  base: 6, eff: l => 'Werkzeug startet auf Stufe ' + (1 + l) },
     { id: 'plaene',  br: 'Erbe',       icon: '📜', name: 'Alte Pläne',        max: 6,  base: 5, eff: l => 'Kanonen-Upgrades −' + pc(P.wsPlaene * l) + ' % Kosten' },
-    { id: 'vorrat',  br: 'Erbe',       icon: '💣', name: 'Munitionsvorrat',   max: 5,  base: 4, eff: l => 'Start mit ' + 2 * l + ' Stück jeder Munition, Munition −' + 10 * l + ' %' },
     { id: 'segen',   br: 'Erbe',       icon: '⛩️', name: 'Schreinsegen',      max: 5,  base: 5, eff: l => 'Schreine wirken +' + pc(P.wsSegen * l) + ' % stärker' },
     { id: 'linse',   br: 'Zeit',       icon: '🔮', name: 'Splitterlinse',     max: 10, base: 5, eff: l => '+' + pc(P.wsLinse * l) + ' % Zeitsplitter' },
     { id: 'naechte', br: 'Zeit',       icon: '🌙', name: 'Lange Nächte',      max: 4,  base: 4, eff: l => 'Offline-Limit ' + (8 + 4 * l) + ' h' },
@@ -185,6 +184,13 @@
     { id: 'meister', br: 'Zeit',       icon: '🏆', name: 'Challenge-Meister', max: 5,  base: 4, eff: l => 'Challenge-Boni +' + pc(P.wsMeister * l) + ' %' },
     { id: 'zeitzone', br: 'Zeit',      icon: '⏳', name: 'Zeitreise-Start',   max: 5,  base: 25, costs: [25, 60, 140, 300, 600], eff: l => 'Nach dem Zeitsprung Start in der ' + AGES[l].name + ' (Hindernisse davor zerstört, Upgrades davor geschenkt)' },
     { id: 'blick',   br: 'Zeit',       icon: '🔭', name: 'Weitblick',         max: 4,  base: 3, eff: l => 'Flugbahn-Vorschau +' + 5 * l + ' %' },
+    // Munition (Nico): dauerhafte Verbesserungen der Munitionsarten
+    { id: 'vorrat',  br: 'Munition',   icon: '📦', name: 'Munitionsvorrat',   max: 5,  base: 4, eff: l => 'Start mit ' + 2 * l + ' Stück jeder Munition, Munition −' + 10 * l + ' %' },
+    { id: 'huepfer', br: 'Munition',   icon: '🏀', name: 'Gummikern',         max: 4,  base: 3, eff: l => 'Hüpfkugel springt ' + (3 + l) + '-mal' },
+    { id: 'spitze',  br: 'Munition',   icon: '🏹', name: 'Stahlspitzen',      max: 4,  base: 3, eff: l => 'Pfeil ×' + String(3 + 0.5 * l).replace('.', ',') + ' Schaden an Hindernissen' },
+    { id: 'zuender', br: 'Munition',   icon: '💣', name: 'Doppelzünder',      max: 4,  base: 4, eff: l => 'Sprengkugel: Explosion ' + (60 + 15 * l) + ' % Flächenschaden, größerer Radius' },
+    { id: 'bohrkopf', br: 'Munition',  icon: '🔩', name: 'Diamantbohrer',     max: 3,  base: 4, eff: l => 'Bohrkugel durchbohrt ' + (3 + l) + ' Teile' },
+    { id: 'goldguss', br: 'Munition',  icon: '💰', name: 'Goldguss',          max: 3,  base: 5, eff: l => 'Goldkugel ×' + (3 + l) + ' Gold' },
     // Farm (Nico): dauerhafte Farm-Upgrades, gelten für jede neue Farm nach dem Zeitsprung
     { id: 'daumen',  br: 'Farm',       icon: '🌾', name: 'Grüner Daumen',     max: 6,  base: 4, eff: l => 'Farm-Ernte +' + pc(P.wsDaumen * l) + ' %' },
     { id: 'ewig',    br: 'Farm',       icon: '🧪', name: 'Ewiger Dünger',     max: 5,  base: 3, eff: l => 'Saat wächst +' + 15 * l + ' % schneller' },
@@ -253,6 +259,15 @@
     { id: 'huepf',  icon: '🏀', name: 'Hüpfkugel',    price: 0.6, desc: 'Springt nach der Landung noch 3-mal weiter.' },
     { id: 'gold',   icon: '💰', name: 'Goldkugel',    price: 1.3, desc: 'Dreifaches Gold für diesen Schuss.' },
   ];
+  // Beschreibung mit den Werten der Zeitwerkstatt-Munitions-Upgrades
+  function ammoDesc(s, id) {
+    const W_ = k => W(s, k), f = x => String(x).replace('.', ',');
+    return ({ pfeil: '×' + f(3 + 0.5 * W_('spitze')) + ' Schaden an Hindernissen, fliegt aber 15 % weniger weit.',
+      spreng: 'Trifft sie ein Hindernis, macht sie Schaden und explodiert: ' + (60 + 15 * W_('zuender')) + ' % Flächenschaden an den Teilen daneben. Am Boden explodiert sie und schleudert sich weit nach vorn.',
+      bohrer: 'Durchbohrt bis zu ' + (3 + W_('bohrkopf')) + ' Teile und macht an jedem vollen Schaden.',
+      huepf: 'Springt nach der Landung noch ' + (3 + W_('huepfer')) + '-mal weiter.',
+      gold: (3 + W_('goldguss')) + '-faches Gold für diesen Schuss.' })[id] || AMMO.find(a => a.id === id).desc;
+  }
   const AMMO_PACK = 5;
   const goldUnit = s => Math.max(1, Math.round(P.g0 * Math.pow(ageRange(s.age) * 10, P.gExp) * Math.pow(P.gluckF, s.lv.gluck)));
   const ammoCost = (s, id) => { const a = AMMO.find(x => x.id === id); return Math.max(5, Math.round(a.price * AMMO_PACK * goldUnit(s) * (1 - 0.1 * W(s, 'vorrat')))); };
@@ -589,6 +604,6 @@
     return nf(n / 1e9, 2) + ' Mrd.';
   }
 
-  root.JS = { FERT_MAX, growSpeed, fertCost, buyFert, farmTodo, CROPS, BOTS, FARM_MAX, SEED_PACK, farmOf, cropOf, seedCost, sellPrice, plotCost, cropCost, botCost, farmAct, grainValue, farmSell, buySeeds, buyPlot, buyCrop, buyBot, tickFarm, W, AMMO, AMMO_PACK, ammoCost, buyAmmo, takeAmmo, goldUnit, SHRINE, shrineSum, shrineOffers, shrineCost, buyShrine, rerollCost, rerollShrines, shrineText, trainBonus, trainReward, WORKSHOP, wsList, wsBuy, wsCost, splitterFor, jumpPreview, jumpUnlocked, rebirth, migrate, newMeta, startGold, workers, P, LINES, AGES, MATS, OBS, CHALLENGES, newState, stats, quality, shotGold, obsState, obsDone, nextBlocking, ageObstaclesDone,
+  root.JS = { ammoDesc, FERT_MAX, growSpeed, fertCost, buyFert, farmTodo, CROPS, BOTS, FARM_MAX, SEED_PACK, farmOf, cropOf, seedCost, sellPrice, plotCost, cropCost, botCost, farmAct, grainValue, farmSell, buySeeds, buyPlot, buyCrop, buyBot, tickFarm, W, AMMO, AMMO_PACK, ammoCost, buyAmmo, takeAmmo, goldUnit, SHRINE, shrineSum, shrineOffers, shrineCost, buyShrine, rerollCost, rerollShrines, shrineText, trainBonus, trainReward, WORKSHOP, wsList, wsBuy, wsCost, splitterFor, jumpPreview, jumpUnlocked, rebirth, migrate, newMeta, startGold, workers, P, LINES, AGES, MATS, OBS, CHALLENGES, newState, stats, quality, shotGold, obsState, obsDone, nextBlocking, ageObstaclesDone,
     upgCost, upgList, canAfford, buy, tapPower, upgradesDone, canAgeUp, ageUp, resInfo, tap, resAction, tickRes, canTrade, tradeRate, trade, neededMats, offline, bonusText, chBonus, chalFor, ageRange, partLevel, partPos, fmtKm, fmtNum };
 })(typeof window !== 'undefined' ? window : globalThis);

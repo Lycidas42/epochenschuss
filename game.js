@@ -4,7 +4,7 @@
   const J = window.JS;
   const $ = q => document.querySelector(q);
   const SAVE = 'jushoot-v2', SCORES = 'jushoot-scores';
-  const VERSION = '0.7.8'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
+  const VERSION = '0.7.9'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
   const G = 9.81e-3; // km/s²
 
   // ---------- Speichern ----------
@@ -254,9 +254,10 @@
   }
 
   // Schaden des aktuellen Schusses (Kritisch, Pfeil ×3)
-  function shotDmg() { const st = J.stats(s); return st.dmg * (shot.crit ? st.crit : 1) * (shot.ammo === 'pfeil' ? 3 : 1); }
+  const sprengSplash = () => J.P.sprengSplash + 0.15 * J.W(s, 'zuender'), sprengRad = () => 3.5 * (1 + 0.15 * J.W(s, 'zuender'));
+  function shotDmg() { const st = J.stats(s); return st.dmg * (shot.crit ? st.crit : 1) * (shot.ammo === 'pfeil' ? 3 + 0.5 * J.W(s, 'spitze') : 1); }
   // Bohrkugel: durchschlägt bis zu 3 Teile, ohne abzuprallen
-  function pierce(key) { if (shot.ammo !== 'bohrer' || shot.pierced.length >= 3) return false; shot.pierced.push(key); return true; }
+  function pierce(key) { if (shot.ammo !== 'bohrer' || shot.pierced.length >= 3 + J.W(s, 'bohrkopf')) return false; shot.pierced.push(key); return true; }
   // Die Kugel fliegt frei über Hindernisse – nur wer ein Teil trifft, macht Schaden
   function checkObstacles(b) {
     const br = 5 / view.scale;
@@ -278,8 +279,8 @@
           o.parts.forEach((pp, j) => {
             if (j === i || hp[j] <= 0) return;
             const qj = J.partPos(o, j, view.time, ob.ys), cx = qj.x + pp.w / 2, cy = qj.y + pp.h / 2;
-            if (Math.hypot(cx - b.x, cy - b.y) > o.u * 3.5) return;
-            const [jx, jy] = toScreen(cx, cy); damagePart(ob, j, qj, dmg * J.P.sprengSplash, jx, jy);
+            if (Math.hypot(cx - b.x, cy - b.y) > o.u * sprengRad()) return;
+            const [jx, jy] = toScreen(cx, cy); damagePart(ob, j, qj, dmg * sprengSplash(), jx, jy);
           });
           shot.boomed = true; syncObstacles();
           if (hp[i] > 0) block(b, q.x, null); else { b.vx *= 0.5; b.vy *= 0.5; }
@@ -424,9 +425,9 @@
       for (let k = 0; k < 10; k++) view.parts.push({ x: sx + (Math.random() - 0.5) * 30, y: sy - Math.random() * 20, vx: (Math.random() - 0.5) * 60, vy: -30 - Math.random() * 50, r: 8 + Math.random() * 10, life: 1.3, col: 'rgba(70,60,55,0.55)', dust: true });
       view.rings = view.rings || []; view.rings.push({ x: sx, y: sy, t: 0, col: '255,180,80' });
       floatText(sx, sy - 60, fly ? 'BUMM! Weiter geht’s!' : 'BUMM!', '#ffb347', 19); view.shake = Math.max(view.shake, 0.55); sfx('hit'); setTimeout(() => sfx('boost'), 80);
-    } else if (shot.ammo === 'huepf' && shot.bounces < 3 && shot.blocked == null) {
+    } else if (shot.ammo === 'huepf' && shot.bounces < 3 + J.W(s, 'huepfer') && shot.blocked == null) {
       shot.bounces++; b.y = 1e-6; b.vy = Math.abs(b.vy) * 0.62; b.vx *= 0.88;
-      burst(sx, sy, '#ff8a5a', 8); floatText(sx, sy - 40, 'Hüpf ' + shot.bounces + '/3', '#ffb3aa', 14); sfx('tap');
+      burst(sx, sy, '#ff8a5a', 8); floatText(sx, sy - 40, 'Hüpf ' + shot.bounces + '/' + (3 + J.W(s, 'huepfer')), '#ffb3aa', 14); sfx('tap');
     }
   }
 
@@ -442,7 +443,7 @@
     if (e && e.type === 'bonusGround' && !e.got && Math.abs(d - e.at) <= e.w) {
       e.got = true; const g = 10 * J.shotGold(s, d); shot.bonus += g; floatText(lx, view.groundY - 90, 'Schatz! +' + J.fmtNum(g) + ' Gold', '#ffd23f', 17); sfx('perfect');
     }
-    const total = (J.shotGold(s, d) + shot.starGold + shot.birdGold + shot.bonus) * (shot.ammo === 'gold' ? 3 : 1);
+    const total = (J.shotGold(s, d) + shot.starGold + shot.birdGold + shot.bonus) * (shot.ammo === 'gold' ? 3 + J.W(s, 'goldguss') : 1);
     s.gold += total; s.shots++;
     const wasOpen = J.jumpUnlocked(s), couldJump = J.jumpPreview(s).can;
     const newRec = d > s.runRec;
@@ -532,7 +533,7 @@
       const [sx, sy] = toScreen(b.x, b.y);
       if (shot.ammo === 'spreng' && !shot.boomed) { // Explosion: Flächenschaden an den Nachbarteilen
         shot.boomed = true; blast(b.x, b.y, sx, sy);
-        o.parts.forEach((pp, j) => { if (j === i || chal.hp[j] <= 0) return; const qj = J.partPos(o, j, view.time, chal.ys); if (Math.hypot(qj.x + pp.w / 2 - b.x, qj.y + pp.h / 2 - b.y) > o.u * 3.5) return; chal.hp[j] = Math.max(0, chal.hp[j] - dmg * J.P.sprengSplash); chal.hit[j] = 1; if (chal.hp[j] <= 0) destroyFx(o, j, qj); });
+        o.parts.forEach((pp, j) => { if (j === i || chal.hp[j] <= 0) return; const qj = J.partPos(o, j, view.time, chal.ys); if (Math.hypot(qj.x + pp.w / 2 - b.x, qj.y + pp.h / 2 - b.y) > o.u * sprengRad()) return; chal.hp[j] = Math.max(0, chal.hp[j] - dmg * sprengSplash()); chal.hit[j] = 1; if (chal.hp[j] <= 0) destroyFx(o, j, qj); });
       }
       chal.hp[i] = Math.max(0, chal.hp[i] - dmg); chal.hit[i] = 1;
       burst(sx, sy, '#ffb347', 12); sfx('hit');
@@ -1014,7 +1015,7 @@
     let h = '<h4 class="sub" style="margin-top:2px">Munition</h4><div class="muted small" style="margin:-2px 2px 8px">Lade sie unten im Spielfeld in die Kanone. Munition gilt für diesen Lauf.</div>';
     J.AMMO.filter(a => a.price).forEach(a => {
       const c = J.ammoCost(s, a.id), n = s.ammo[a.id] || 0;
-      h += `<div class="card upg"><div class="ammo-ic">${a.icon}</div><div class="info"><div class="name">${esc(a.name)} <span class="muted">· Vorrat ${n}</span></div><div class="muted">${esc(a.desc)}</div></div>
+      h += `<div class="card upg"><div class="ammo-ic">${a.icon}</div><div class="info"><div class="name">${esc(a.name)} <span class="muted">· Vorrat ${n}</span></div><div class="muted">${esc(J.ammoDesc(s, a.id))}</div></div>
         <button class="btn" data-ammo="${a.id}" ${s.gold >= c ? '' : 'disabled'}>${J.AMMO_PACK}× ${COIN()} ${J.fmtNum(c)}</button></div>`;
     });
     const sum = J.shrineSum(s), own = s.shrines.length;
@@ -1031,13 +1032,13 @@
   // Munitionsauswahl im Spielfeld (nur sichtbar, wenn Spezialmunition im Vorrat ist)
   function renderAmmoBar() {
     const el = $('#ammoBar'), have = J.AMMO.filter(a => !a.price || (s.ammo[a.id] || 0) > 0);
-    const h = have.length > 1 ? have.map(a => `<button class="ammo-chip ${s.ammoSel === a.id ? 'on' : ''}" data-sel="${a.id}" title="${esc(a.name)}: ${esc(a.desc)}">${a.icon} <span>${a.price ? s.ammo[a.id] : '∞'}</span></button>`).join('') : '';
+    const h = have.length > 1 ? have.map(a => `<button class="ammo-chip ${s.ammoSel === a.id ? 'on' : ''}" data-sel="${a.id}" title="${esc(a.name)}: ${esc(J.ammoDesc(s, a.id))}">${a.icon} <span>${a.price ? s.ammo[a.id] : '∞'}</span></button>`).join('') : '';
     if (h !== renderAmmoBar.h) { renderAmmoBar.h = h; el.innerHTML = h; el.hidden = !h; if (onCanvas()) layout(); }
   }
   $('#ammoBar').addEventListener('click', e => {
     const b = e.target.closest('[data-sel]'); if (!b) return;
     s.ammoSel = b.dataset.sel; sfx('click'); renderAmmoBar();
-    const a = J.AMMO.find(x => x.id === s.ammoSel); if (a.price) toast(a.icon + ' <b>' + esc(a.name) + '</b> geladen: ' + esc(a.desc));
+    const a = J.AMMO.find(x => x.id === s.ammoSel); if (a.price) toast(a.icon + ' <b>' + esc(a.name) + '</b> geladen: ' + esc(J.ammoDesc(s, a.id)));
   });
 
   // Leichte Aktualisierung ohne Neuaufbau
