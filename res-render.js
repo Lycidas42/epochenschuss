@@ -83,9 +83,68 @@
     }
 
     // ---------- Abbaustelle (Ursprung = Bodenmitte, Einheit ≈ 1 px bei Maßstab 1) ----------
+    // Werkzeug-Stufe (Nico): bessere Werkzeuge = bessere Abbaustelle und andere Werkzeuge in der Hand der Arbeiter
+    let tier = 0;
+    const toolTier = n => n <= 1 ? 0 : n <= 3 ? 1 : n <= 5 ? 2 : 3;
+    const TIER_MAT = [['#9a8f80', '#c9bfae'], ['#7d848c', '#b9c0c8'], ['#cfd6de', '#ffffff'], ['#e0b23a', '#fff3b0']]; // Stein/Bronze, Eisen, Stahl, Gold
+    const TIER_HELM = ['#c9a46a', '#ffc53d', '#4bb8ff', '#ffd23f'];
+    // Ausbau hinter der Abbaustelle, wächst mit der Werkzeug-Stufe
+    function siteExtras(i, t, n) {
+      if (!n) return;
+      const glow = (x, y, r, col) => { const g = c.createRadialGradient(x, y, 1, x, y, r); g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); };
+      switch (i) {
+        case 0: // größerer Wald: mehr Bäume dahinter
+          for (let k = 0; k < n * 2; k++) { const x = -90 + k * 26 + (k % 2) * 8, r = 14 + (k % 3) * 4, sw = Math.sin(t * 1.1 + k) * 1.5; c.fillStyle = '#4a3020'; c.fillRect(x - 3, -36 - r, 6, 36 + r); c.fillStyle = k % 2 ? '#2f6a2a' : '#3a7a33'; c.beginPath(); c.arc(x + sw, -44 - r * 1.4, r, 0, TAU); c.arc(x - r * 0.6 + sw, -36 - r, r * 0.7, 0, TAU); c.arc(x + r * 0.6 + sw, -36 - r, r * 0.7, 0, TAU); c.fill(); }
+          if (n >= 3) { c.fillStyle = '#8a5a2b'; for (let k = 0; k < 3; k++) { rr(c, 46, -8 - k * 7, 30, 7, 3); c.fill(); c.fillStyle = '#e2b77a'; c.beginPath(); c.arc(76, -4.5 - k * 7, 3, 0, TAU); c.fill(); c.fillStyle = '#8a5a2b'; } }
+          break;
+        case 1: // Steinbruch: Gerüst, dann Kran, dann zweite Wand
+          if (n >= 3) { c.fillStyle = '#6d6a62'; c.beginPath(); c.moveTo(30, 0); c.lineTo(50, -118); c.lineTo(96, -96); c.lineTo(104, 0); c.fill(); }
+          c.strokeStyle = '#7a5230'; c.lineWidth = 3; c.beginPath(); c.moveTo(-82, 0); c.lineTo(-82, -70); c.moveTo(-66, 0); c.lineTo(-66, -70); for (let y = -10; y > -70; y -= 15) { c.moveTo(-82, y); c.lineTo(-66, y); } c.stroke();
+          if (n >= 2) { c.strokeStyle = '#c0392b'; c.lineWidth = 4; c.beginPath(); c.moveTo(80, 0); c.lineTo(80, -120); c.lineTo(20, -120); c.stroke(); c.strokeStyle = '#333'; c.lineWidth = 1; const sw = Math.sin(t) * 4; c.beginPath(); c.moveTo(30, -120); c.lineTo(30 + sw, -80); c.stroke(); c.fillStyle = '#9a978c'; rr(c, 22 + sw, -80, 16, 10, 2); c.fill(); }
+          break;
+        case 2: // Ofen: zweiter Schornstein, Eisenbänder, später goldene Kuppel mit Glut
+          c.fillStyle = '#4a2818'; c.fillRect(-40, -118, 14, 60); c.fillStyle = '#6a3828'; c.fillRect(-42, -122, 18, 6);
+          if (n >= 2) { c.strokeStyle = '#3b3633'; c.lineWidth = 3; [-30, -54].forEach(y => { c.beginPath(); c.ellipse(0, y + 30, 56 - (y === -54 ? 8 : 0), 4, 0, Math.PI, 0); c.stroke(); }); }
+          if (n >= 3) glow(0, -40, 80, 'rgba(255,180,60,0.35)');
+          break;
+        case 3: // Mine: zweites Gleis, Grubenlampen, Förderturm
+          c.strokeStyle = '#555'; c.lineWidth = 2; c.beginPath(); c.moveTo(-10, -8); c.lineTo(100, -8); c.stroke();
+          if (n >= 2) [-40, 40].forEach(x => { c.fillStyle = '#3b3633'; c.fillRect(x - 1.5, -60, 3, 60); glow(x, -62, 12, 'rgba(255,220,120,0.8)'); c.fillStyle = '#ffe9a8'; c.beginPath(); c.arc(x, -62, 3, 0, TAU); c.fill(); });
+          if (n >= 3) { c.strokeStyle = '#7a5230'; c.lineWidth = 4; c.beginPath(); c.moveTo(-70, -60); c.lineTo(-50, -150); c.lineTo(-30, -60); c.moveTo(-64, -90); c.lineTo(-36, -90); c.stroke(); c.save(); c.translate(-50, -150); c.rotate(t * 2); c.strokeStyle = '#333'; c.lineWidth = 2; c.beginPath(); c.arc(0, 0, 10, 0, TAU); c.moveTo(-10, 0); c.lineTo(10, 0); c.moveTo(0, -10); c.lineTo(0, 10); c.stroke(); c.restore(); }
+          break;
+        case 4: // Seilerei: zweites Rad, Trockengestell mit Seilrollen
+          c.save(); c.translate(-80, -50); c.rotate(-t * 2.5); c.strokeStyle = '#8a5a2b'; c.lineWidth = 3; c.beginPath(); c.arc(0, 0, 16, 0, TAU); c.stroke(); for (let k = 0; k < 4; k++) { c.rotate(Math.PI / 4); c.beginPath(); c.moveTo(-16, 0); c.lineTo(16, 0); c.stroke(); } c.restore();
+          if (n >= 2) { c.strokeStyle = '#7a5230'; c.lineWidth = 3; c.beginPath(); c.moveTo(76, 0); c.lineTo(76, -70); c.lineTo(100, -70); c.lineTo(100, 0); c.stroke(); for (let k = 0; k < n; k++) { c.fillStyle = '#c9a46a'; c.beginPath(); c.arc(88, -60 + k * 16, 6, 0, TAU); c.fill(); c.strokeStyle = '#8a6a3a'; c.lineWidth = 1; c.beginPath(); c.arc(88, -60 + k * 16, 3, 0, TAU); c.stroke(); } }
+          break;
+        case 5: // Schmiede: größerer Kamin mit Glut, zweiter Amboss, Fallhammer
+          glow(-50, -100, 20 + 6 * n, 'rgba(255,120,40,0.35)');
+          if (n >= 2) { c.fillStyle = '#2f2f34'; c.beginPath(); c.moveTo(40, -24); c.lineTo(70, -24); c.lineTo(64, -16); c.lineTo(58, -16); c.lineTo(62, 0); c.lineTo(46, 0); c.lineTo(50, -16); c.closePath(); c.fill(); }
+          if (n >= 3) { c.fillStyle = '#3b3633'; c.fillRect(80, -110, 8, 110); c.fillRect(80, -110, 40, 8); const hy = -96 + Math.abs(Math.sin(t * 3)) * 60; c.fillStyle = '#5d5f66'; c.fillRect(100, hy, 16, 22); }
+          break;
+        case 6: // Pulvermühle: mehr Fässer, zweite Mühle
+          for (let k = 0; k < n; k++) item(6, 70 + k * 12, -12, 10, 0);
+          if (n >= 2) { c.fillStyle = '#b8a47a'; c.beginPath(); c.moveTo(-92, 0); c.lineTo(-88, -56); c.lineTo(-66, -56); c.lineTo(-62, 0); c.fill(); c.save(); c.translate(-77, -58); c.rotate(-t * 1.4); c.fillStyle = '#efe6d0'; for (let k = 0; k < 4; k++) { c.rotate(Math.PI / 2); c.fillRect(3, -4, 30, 8); } c.restore(); }
+          break;
+        case 7: // Dampfwerk: Rohre, zweiter Kessel, Dampfwolken
+          c.strokeStyle = '#8f8a80'; c.lineWidth = 5; c.beginPath(); c.moveTo(-10, -30); c.lineTo(10, -30); c.lineTo(10, -90); c.lineTo(60, -90); c.stroke();
+          if (n >= 2) { c.fillStyle = '#2f3034'; rr(c, -110, -44, 36, 44, 8); c.fill(); c.fillStyle = '#c0392b'; c.beginPath(); c.arc(-92, -26, 6, 0, TAU); c.fill(); }
+          if (n >= 3) { c.save(); c.translate(-60, -110); c.rotate(t * 1.5); item(7, 0, 0, 22, 0); c.restore(); }
+          break;
+        case 8: // Chipfabrik: zweiter Roboterarm, Bildschirme, Server-Schrank
+          c.fillStyle = '#1b1d22'; rr(c, 52, -96, 30, 40, 3); c.fill(); for (let k = 0; k < 5; k++) { c.fillStyle = (Math.floor(t * 4) + k) % 3 ? '#5ee07a' : '#4be3ff'; c.fillRect(56, -90 + k * 7, 4, 2); }
+          if (n >= 2) { c.fillStyle = '#1b1d22'; rr(c, -110, -80, 28, 20, 2); c.fill(); c.fillStyle = '#4be3ff'; c.fillRect(-107, -77, 22, 14); }
+          if (n >= 3) glow(-26, -60, 70, 'rgba(127,246,255,0.25)');
+          break;
+        default: // Reaktor: zusätzliche Ringe und Energiesäulen
+          for (let k = 0; k < n; k++) { c.strokeStyle = `rgba(255,122,217,${0.35 + 0.15 * Math.sin(t * 3 + k)})`; c.lineWidth = 2; c.beginPath(); c.ellipse(0, -66, 64 + k * 12, 28 + k * 5, Math.sin(t * 0.5 + k) * 0.2, 0, TAU); c.stroke(); }
+          if (n >= 2) [-84, 84].forEach(x => { c.fillStyle = '#2a2366'; c.fillRect(x - 6, -100, 12, 100); glow(x, -100, 16, 'rgba(127,246,255,0.8)'); });
+      }
+    }
     function site(i, t, hit) {
       const sh = hit > 0 ? Math.sin(hit * 60) * 3 * hit : 0;
       c.save(); c.translate(sh, 0);
+      siteExtras(i, t, tier);
+      if (tier) c.scale(1 + 0.06 * tier, 1 + 0.06 * tier);
       switch (i) {
         case 0: { // Wald: zwei Bäume
           c.fillStyle = '#2f6a2a'; [[-46, -64, 22], [-58, -50, 16], [-34, -50, 16]].forEach(([x, y, r]) => { c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); });
@@ -239,20 +298,23 @@
     }
     function drawTool(tool, x, y, ang) {
       c.save(); c.translate(x, y); c.rotate(ang);
-      c.strokeStyle = '#7a5230'; c.lineWidth = 3; c.lineCap = 'round'; c.beginPath(); c.moveTo(-4, 0); c.lineTo(tool === 'hammer' ? 16 : 24, 0); c.stroke();
-      c.fillStyle = '#9aa0a8';
-      if (tool === 'axe') { c.beginPath(); c.moveTo(18, -1); c.lineTo(24, -11); c.quadraticCurveTo(30, -4, 27, 4); c.lineTo(20, 3); c.closePath(); c.fill(); c.fillStyle = '#d9dee5'; c.fillRect(25, -8, 2, 10); }
-      else if (tool === 'pick') { c.strokeStyle = '#9aa0a8'; c.lineWidth = 3.5; c.beginPath(); c.moveTo(20, -12); c.quadraticCurveTo(27, 0, 20, 12); c.stroke(); }
-      else if (tool === 'hammer') { c.fillStyle = '#5d5f66'; c.fillRect(12, -7, 9, 14); c.fillStyle = '#8a8d94'; c.fillRect(12, -7, 9, 3); }
+      const M = TIER_MAT[tier], sz = 1 + 0.12 * tier; c.scale(sz, sz);
+      c.strokeStyle = tier === 3 ? '#5a3a1f' : '#7a5230'; c.lineWidth = 3; c.lineCap = 'round'; c.beginPath(); c.moveTo(-4, 0); c.lineTo(tool === 'hammer' ? 16 : 24, 0); c.stroke();
+      if (tier >= 2) { c.strokeStyle = M[0]; c.lineWidth = 3.4; c.beginPath(); c.moveTo(-4, 0); c.lineTo(2, 0); c.stroke(); } // Griffband
+      c.fillStyle = M[0];
+      if (tool === 'axe') { c.beginPath(); c.moveTo(18, -1); c.lineTo(24, -11); c.quadraticCurveTo(30, -4, 27, 4); c.lineTo(20, 3); c.closePath(); c.fill(); c.fillStyle = M[1]; c.fillRect(25, -8, 2, 10); if (tier >= 2) { c.fillStyle = M[0]; c.beginPath(); c.moveTo(18, 1); c.lineTo(12, -8); c.lineTo(14, 4); c.fill(); } }
+      else if (tool === 'pick') { c.strokeStyle = M[0]; c.lineWidth = 3.5 + tier * 0.5; c.beginPath(); c.moveTo(20, -12); c.quadraticCurveTo(27, 0, 20, 12); c.stroke(); c.strokeStyle = M[1]; c.lineWidth = 1; c.beginPath(); c.moveTo(21, -10); c.quadraticCurveTo(26, 0, 21, 10); c.stroke(); }
+      else if (tool === 'hammer') { c.fillStyle = M[0]; c.fillRect(12, -7 - tier, 9 + tier, 14 + 2 * tier); c.fillStyle = M[1]; c.fillRect(12, -7 - tier, 9 + tier, 3); }
       else if (tool === 'pestle') { c.fillStyle = '#c9b48a'; c.beginPath(); c.ellipse(24, 0, 5, 3.5, 0, 0, TAU); c.fill(); }
+      if (tier === 3) { const tw = Math.sin(Date.now() / 150); if (tw > 0.3) { c.fillStyle = `rgba(255,255,255,${tw})`; c.fillRect(22, -12, 6, 1); c.fillRect(24.5, -14.5, 1, 6); } }
       c.restore();
     }
     // Werkstation vor der Figur (Blasebalg, Lore, Kurbel, Mörser, Hebel, Pult)
     function station(type, k, t) {
       const hit = Math.max(0, k);
-      if (type === 'bellows') { const sq = 1 - 0.5 * hit; c.fillStyle = '#6b4423'; c.beginPath(); c.moveTo(6, -4); c.lineTo(30, -4 - 2 * sq); c.lineTo(30, -4 - 10 * sq); c.lineTo(6, -4 - 12 * sq); c.closePath(); c.fill(); c.fillStyle = '#a0703c'; c.fillRect(4, -6 - 12 * sq, 14, 3); c.fillStyle = '#5d5f66'; c.fillRect(30, -9, 10, 3); }
-      else if (type === 'push') { const x = 22 + hit * 8; c.fillStyle = '#5d5f66'; c.beginPath(); c.moveTo(x, -22); c.lineTo(x + 26, -22); c.lineTo(x + 22, -6); c.lineTo(x + 4, -6); c.fill(); c.fillStyle = '#2a2a2e'; [x + 7, x + 19].forEach(wx => { c.beginPath(); c.arc(wx, -4, 4, 0, TAU); c.fill(); }); c.fillStyle = '#4e5056'; c.beginPath(); c.arc(x + 9, -23, 6, Math.PI, 0); c.arc(x + 18, -23, 5, Math.PI, 0); c.fill(); c.fillStyle = '#b8603e'; c.beginPath(); c.arc(x + 12, -25, 1.6, 0, TAU); c.fill(); }
-      else if (type === 'crank') { c.fillStyle = '#7a5230'; c.fillRect(20, -28, 4, 28); c.strokeStyle = '#5a3a1f'; c.lineWidth = 2.5; c.beginPath(); c.arc(22, -28, 7, 0, TAU); c.stroke(); }
+      if (type === 'bellows') { const sq = 1 - 0.5 * hit; c.fillStyle = ['#6b4423', '#5a4a3a', '#7d848c', '#c99a2e'][tier]; c.beginPath(); c.moveTo(6, -4); c.lineTo(30, -4 - 2 * sq); c.lineTo(30, -4 - 10 * sq); c.lineTo(6, -4 - 12 * sq); c.closePath(); c.fill(); c.fillStyle = '#a0703c'; c.fillRect(4, -6 - 12 * sq, 14, 3); c.fillStyle = '#5d5f66'; c.fillRect(30, -9, 10, 3); }
+      else if (type === 'push') { const x = 22 + hit * 8; c.fillStyle = tier ? TIER_MAT[tier][0] : '#5d5f66'; c.beginPath(); c.moveTo(x, -22); c.lineTo(x + 26, -22); c.lineTo(x + 22, -6); c.lineTo(x + 4, -6); c.fill(); c.fillStyle = '#2a2a2e'; [x + 7, x + 19].forEach(wx => { c.beginPath(); c.arc(wx, -4, 4, 0, TAU); c.fill(); }); c.fillStyle = '#4e5056'; c.beginPath(); c.arc(x + 9, -23, 6, Math.PI, 0); c.arc(x + 18, -23, 5, Math.PI, 0); c.fill(); c.fillStyle = '#b8603e'; c.beginPath(); c.arc(x + 12, -25, 1.6, 0, TAU); c.fill(); }
+      else if (type === 'crank') { c.fillStyle = '#7a5230'; c.fillRect(20, -28, 4, 28); c.strokeStyle = tier ? TIER_MAT[tier][0] : '#5a3a1f'; c.lineWidth = 2.5; c.beginPath(); c.arc(22, -28, 7, 0, TAU); c.stroke(); }
       else if (type === 'pestle') { c.fillStyle = '#6b4423'; c.fillRect(6, -10, 16, 10); c.fillStyle = '#9a958c'; c.beginPath(); c.moveTo(4, -18); c.lineTo(24, -18); c.lineTo(20, -10); c.lineTo(8, -10); c.fill(); c.fillStyle = '#222'; c.fillRect(7, -18, 14, 2); if (hit > 0.6) { c.fillStyle = 'rgba(60,60,60,0.5)'; c.beginPath(); c.arc(14, -22, 6 * hit, 0, TAU); c.fill(); } }
       else if (type === 'lever') { c.fillStyle = '#3b3633'; rr(c, 14, -10, 18, 10, 2); c.fill(); }
       else if (type === 'type') { c.fillStyle = '#3b4a6a'; c.fillRect(20, -16, 4, 16); c.fillStyle = '#1b1d22'; c.save(); c.translate(14, -20); c.rotate(-0.25); rr(c, 0, 0, 20, 5, 2); c.fill(); c.restore(); c.fillStyle = '#1b1d22'; rr(c, 22, -40, 16, 14, 2); c.fill(); c.fillStyle = hit > 0.3 ? '#bff8ff' : '#4be3ff'; c.fillRect(24, -38, 12, 10); c.fillStyle = '#1b1d22'; for (let q = 0; q < 3; q++) c.fillRect(25, -36 + q * 3, 4 + ((q * 5 + Math.floor(t * 6)) % 7), 1); }
@@ -267,7 +329,8 @@
       c.save(); c.translate(0, -16); c.rotate(P[0]); c.translate(0, 16);
       c.fillStyle = shirt; rr(c, -9, -38, 18, 24, 6); c.fill(); c.fillStyle = 'rgba(0,0,0,0.15)'; c.fillRect(-9, -20, 18, 3);
       c.fillStyle = '#f0c79a'; c.beginPath(); c.arc(0, -46, 8, 0, TAU); c.fill();
-      c.fillStyle = '#ffc53d'; c.beginPath(); c.arc(0, -48, 9, Math.PI, 0); c.fill(); c.fillRect(-10, -49, 20, 3); // Helm
+      c.fillStyle = TIER_HELM[tier]; c.beginPath(); c.arc(0, -48, 9, Math.PI, 0); c.fill(); c.fillRect(-10, -49, 20, 3); // Helm (Farbe je Werkzeug-Stufe)
+      if (tier >= 2) { c.fillStyle = '#fff6c0'; c.beginPath(); c.arc(4, -52, 2.2, 0, TAU); c.fill(); } // Helmlampe
       c.fillStyle = '#222'; c.beginPath(); c.arc(3, -46, 1.3, 0, TAU); c.fill();
       c.strokeStyle = '#8a3a2a'; c.lineWidth = 1; c.beginPath(); if (k > 0.5) c.arc(4, -42, 1.4, 0, TAU); else c.arc(3.5, -43, 1.8, 0.2, Math.PI - 0.6); c.stroke();
       c.restore();
@@ -275,7 +338,7 @@
       if (carryItem != null) { item(carryItem, 0, -60, 9, 0); limb(shx - 6, shy, -5, -54, '#f0c79a'); limb(shx, shy, 5, -54, '#f0c79a'); c.restore(); return; }
       let fx = P[1], fy = P[2], bx = P[3], by = P[4];
       if (type === 'crank') { const a = (t || 0) * 2 + Math.max(0, k) * 6; fx = 22 + Math.cos(a) * 7; fy = -28 + Math.sin(a) * 7; bx = fx - 2; by = fy + 1; c.strokeStyle = '#5a3a1f'; c.lineWidth = 2; c.beginPath(); c.moveTo(22, -28); c.lineTo(fx, fy); c.stroke(); }
-      if (type === 'lever') { c.strokeStyle = '#8f8a80'; c.lineWidth = 3; c.beginPath(); c.moveTo(23, -8); c.lineTo(fx, fy); c.stroke(); c.fillStyle = '#c0392b'; c.beginPath(); c.arc(fx, fy, 3, 0, TAU); c.fill(); }
+      if (type === 'lever') { c.strokeStyle = tier ? TIER_MAT[tier][0] : '#8f8a80'; c.lineWidth = 3; c.beginPath(); c.moveTo(23, -8); c.lineTo(fx, fy); c.stroke(); c.fillStyle = '#c0392b'; c.beginPath(); c.arc(fx, fy, 3, 0, TAU); c.fill(); }
       const tool = TOOLS[type];
       limb(shx - 4, shy, bx, by, '#e2b688');
       if (tool) drawTool(tool, fx, fy, P[5]);
@@ -423,6 +486,7 @@
       if (i !== lastI) { chips = []; pops = []; texts = []; smoke = []; lastI = i; }
       c.setTransform(dpr, 0, 0, dpr, 0, 0);
       const g = geom(i), s = g.s;
+      tier = toolTier(st.tool || 1);
       pulse = Math.max(0, pulse - dt * 3); shake = Math.max(0, shake - dt);
       // Himmel, Hügel, Boden
       const sky = c.createLinearGradient(0, 0, 0, g.gy); sky.addColorStop(0, SKY[i][0]); sky.addColorStop(1, SKY[i][1]);
