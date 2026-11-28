@@ -46,7 +46,7 @@ Bis zu **2 Ereignisse gleichzeitig** (nie zweimal dieselbe Art), z. B. Schubvoge
 Start mit großem Hinweis in der Mitte, danach oben links eine Karte mit Symbol, Wirkung und verbleibenden Schüssen (grün = gut, rot = schlecht). Regen, Nebel und Fallwind sind auch im Bild zu sehen. Boni enden, sobald man sie eingesammelt hat.
 
 
-Rückenwind/Gegenwind, 🐾 Maulwurf (stößt Kugeln, die auf seinem Hügel landen, wieder hoch), 🌿 Schnapppflanze (fängt tief fliegende Kugeln), ⛈️ Gewitterwolken (bremsen), 🌧️ Regen (Luftwiderstand), ⬇️ Fallwind (mehr Schwerkraft), 🌫️ Nebel (keine Vorschau), 💰 Schatzkiste am Boden, 🎈 Goldballon, ✨ Sternenregen, 🐦 Schubvogel (kreist sichtbar, treffen = Mega-Schub, endet nach dem Treffer).
+Rückenwind/Gegenwind, 🐾 Maulwurf (stößt Kugeln, die auf seinem Hügel landen, wieder hoch), 🌿 Schnapppflanze (fängt tief fliegende Kugeln), ⛈️ Gewitterwolken (bremsen), 🌧️ Regen (Luftwiderstand), ⬇️ Fallwind (mehr Schwerkraft), 🌫️ Nebel (keine Vorschau), 💰 Schatzkiste am Boden, 🎈 Goldballon, ✨ Sternenregen, 🐦 Schubvogel (kreist sichtbar, treffen = Mega-Schub, endet nach dem Treffer). Neu in Runde 6: 🌀 Zeitportal (hineinfliegen = Sprung nach vorn, Ausgang nie hinter dem nächsten Sperr-Hindernis), 🌪️ Wirbelsturm (schleudert die Kugel steil hoch, bremst sie aber), 🌙 Mondschwerkraft (weniger Schwerkraft), 🪙 Goldrausch (doppeltes Gold), 🪨 Riesenkugel (×2,5 Schaden an Hindernissen), 🌑 Sternennacht (dunkel mit Lichtkegel, Sterne ×3 Gold), ☄️ Sternschnuppe (bewegliches Ziel, treffen = viel Gold).
 
 ## Challenges
 

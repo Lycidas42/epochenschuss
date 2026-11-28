@@ -4,7 +4,7 @@
   const J = window.JS;
   const $ = q => document.querySelector(q);
   const SAVE = 'jushoot-v2', SCORES = 'jushoot-scores';
-  const VERSION = '0.8.5'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
+  const VERSION = '0.8.6'; // gleich halten mit VERSION in sw.js, wird im Menü angezeigt
   const G = 9.81e-3; // km/s²
 
   // ---------- Speichern ----------
@@ -112,6 +112,9 @@
     if (e && e.type === 'bonusAir') { xMax = Math.max(xMax, e.x * 1.1); yMax = Math.max(yMax, e.y * 1.3); }
     if (e && (e.type === 'bonusGround' || e.type === 'mole' || e.type === 'plant')) xMax = Math.max(xMax, e.at * 1.1);
     if (e && e.type === 'plant') yMax = Math.max(yMax, e.h * 1.6);
+    if (e.type === 'portal') { xMax = Math.max(xMax, e.bx * 1.1); yMax = Math.max(yMax, e.by * 1.4); }
+    if (e.type === 'tornado') { xMax = Math.max(xMax, e.at * 1.15); yMax = Math.max(yMax, e.h * 1.15); }
+    if (e.type === 'comet' && !e.got) { xMax = Math.max(xMax, e.x0 * 0.9); yMax = Math.max(yMax, e.y0 * 1.1); }
     }
     return fitScale(xMax, yMax);
   }
@@ -155,11 +158,21 @@
     { type: 'mole',        w: 2, good: true,  icon: '🐾', name: 'Maulwurf',     desc: 'stößt gelandete Kugeln wieder hoch' },
     { type: 'plant',       w: 2, good: false, icon: '🌿', name: 'Schnapppflanze', desc: 'fängt tief fliegende Kugeln' },
     { type: 'bird',        w: 3, good: true,  icon: '🐦', name: 'Schubvogel',   desc: 'kreist am Himmel: treffen = Mega-Schub' },
+    // Runde 6 (Nico: Ereignisse sollen sich deutlicher unterscheiden)
+    { type: 'portal',      w: 2, good: true,  icon: '🌀', name: 'Zeitportal',   desc: 'hineinfliegen = Sprung nach vorn' },
+    { type: 'tornado',     w: 2, good: null,  icon: '🌪️', name: 'Wirbelsturm',  desc: 'schleudert die Kugel steil nach oben' },
+    { type: 'lowgrav',     w: 2, good: true,  icon: '🌙', name: 'Mondschwerkraft', desc: 'Kugel ist leichter und fliegt weiter' },
+    { type: 'goldrush',    w: 2, good: true,  icon: '🪙', name: 'Goldrausch',   desc: 'doppeltes Gold für jeden Schuss' },
+    { type: 'giant',       w: 2, good: true,  icon: '🪨', name: 'Riesenkugel',  desc: 'riesige Kugel: ×2,5 Schaden an Hindernissen' },
+    { type: 'night',       w: 2, good: null,  icon: '🌑', name: 'Sternennacht', desc: 'stockdunkel, aber Sterne bringen ×3 Gold' },
+    { type: 'comet',       w: 2, good: true,  icon: '☄️', name: 'Sternschnuppe', desc: 'zieht über den Himmel: treffen = viel Gold' },
   ];
   let eventCool = 0;
   // Mehrere Ereignisse gleichzeitig (Nico): bis zu 2, nie zweimal dieselbe Art
   const EV_MAX = 2;
   const evOf = type => view.events.find(e => e.type === type);
+  // Sternschnuppe zieht in Schleifen über den Himmel
+  const cometPos = e => { const k = (view.time % e.per); return { x: e.x0 + e.vx * k, y: e.y0 + e.vy * k }; };
   function spawnEvent(force) {
     if (chal) return;
     let ev = EVENTS.find(e => e.type === force);
@@ -193,6 +206,14 @@
     } else if (ev.type === 'bird') { // Vogel als seltenes Ereignis (Nico): kreist schon vor dem Schuss sichtbar an fester Stelle
       e.cx = lim * (0.22 + 0.4 * Math.random()); e.cy = lim * (0.07 + 0.16 * Math.random()); e.rad = lim * 0.018;
       e.fly = { x: e.cx, y: e.cy, vx: 1, type: s.age, ph: Math.random() * 6, hit: false, big: true, hover: true };
+    } else if (ev.type === 'portal') { // Ausgang nie hinter dem nächsten Sperr-Hindernis, damit man Hindernisse nicht überspringt
+      const blk = J.nextBlocking(s), cap = blk ? blk.at * 0.92 : lim * 1.4;
+      e.ax = Math.min(lim * (0.22 + 0.25 * Math.random()), cap * 0.5); e.ay = lim * (0.06 + 0.12 * Math.random()); e.r = lim * 0.035;
+      e.bx = Math.max(e.ax + lim * 0.06, Math.min(e.ax + lim * 0.32, cap)); e.by = e.ay * 1.15;
+    } else if (ev.type === 'tornado') {
+      e.at = lim * (0.3 + 0.4 * Math.random()); e.w = lim * 0.035; e.h = lim * 0.38;
+    } else if (ev.type === 'comet') {
+      e.x0 = lim * 1.05; e.y0 = lim * 0.36; e.vx = -lim * 0.13; e.vy = -lim * 0.04; e.per = 6; e.r = lim * 0.03;
     }
     e.label = e.icon + ' ' + e.name;
     view.events.push(e); view.intro = { e, t: 0 };
@@ -237,7 +258,7 @@
     const m = R.muzzle(s.age, s.angle, s.cur), sc = view.scale, wnd = evOf('wind');
     shot = { inChal: !!chal, ammo, pierced: [], bounces: 0, q: qq.q, crit: qq.crit, v0, ts: tRef / tTarget, starGold: 0, birdGold: 0, bonus: 0, blocked: null,
       predD: Rq * Math.sin(2 * a), predApex: Rq * Math.sin(a) ** 2 / 2,
-      g: G * (evOf('heavy') ? 1.3 : 1), wind: wnd ? wnd.wind : 0, drag: evOf('rain') ? 0.5 / tRef : 0 };
+      g: G * (evOf('heavy') ? 1.3 : 1) * (evOf('lowgrav') ? 0.72 : 1), wind: wnd ? wnd.wind : 0, drag: evOf('rain') ? 0.5 / tRef : 0 };
     view.ball = { x: m.x / sc, y: -m.y / sc, vx: v0 * Math.cos(a), vy: v0 * Math.sin(a), ammo };
     if (ammo !== 'kugel') renderAmmoBar();
     view.trail = [[view.ball.x, view.ball.y]]; view.trailA = 1; view.preview = [];
@@ -264,7 +285,7 @@
 
   // Schaden des aktuellen Schusses (Kritisch, Pfeil ×3)
   const sprengSplash = () => J.P.sprengSplash + 0.15 * J.W(s, 'zuender'), sprengRad = () => 3.5 * (1 + 0.15 * J.W(s, 'zuender'));
-  function shotDmg() { const st = J.stats(s); return st.dmg * (shot.crit ? st.crit : 1) * (shot.ammo === 'pfeil' ? 3 + 0.5 * J.W(s, 'spitze') : 1); }
+  function shotDmg() { const st = J.stats(s); return st.dmg * (shot.crit ? st.crit : 1) * (shot.ammo === 'pfeil' ? 3 + 0.5 * J.W(s, 'spitze') : 1) * (evOf('giant') ? 2.5 : 1); }
   // Bohrkugel: durchschlägt bis zu 3 Teile, ohne abzuprallen
   function pierce(key) { if (shot.ammo !== 'bohrer' || shot.pierced.length >= 3 + J.W(s, 'bohrkopf')) return false; shot.pierced.push(key); return true; }
   // Die Kugel fliegt frei über Hindernisse – nur wer ein Teil trifft, macht Schaden
@@ -369,7 +390,7 @@
       if (shot.ammo === 'magnet') { const R = 130 * (1 + 0.3 * J.W(s, 'magnetfeld')); view.stars.forEach(t => { if (t.got) return; const d = dist2px(t.x, t.y, b.x, b.y); if (d < R) { const k = Math.min(1, 0.05 + 0.25 * (1 - d / R)); t.x += (b.x - t.x) * k; t.y += (b.y - t.y) * k; t.pull = 1; } }); }
       view.stars.forEach(t => {
         if (t.got || dist2px(t.x, t.y, b.x, b.y) > 20) return;
-        t.got = true; const g = Math.max(1, Math.round(J.shotGold(s, Math.max(shot.predD, 0.05)) * 0.25));
+        t.got = true; const g = Math.max(1, Math.round(J.shotGold(s, Math.max(shot.predD, 0.05)) * 0.25 * (evOf('night') ? 3 : 1)));
         shot.starGold += g; const [sx, sy] = toScreen(t.x, t.y); floatText(sx, sy - 14, '+' + J.fmtNum(g) + ' ⭐', '#ffd23f'); burst(sx, sy, '#ffe680', 10); sfx('star');
       });
       // Flieger: Schub + etwas Gold
@@ -398,6 +419,18 @@
         const [sx, sy] = toScreen(e.at, e.h); floatText(sx, sy - 30, 'Schnapp! Gefressen', '#ff8a7a', 16); burst(sx, sy, '#5ea83a', 14); sfx('bad');
         b.x = e.at; b.y = 0; b.vx = 0; b.vy = -1e-6; land(); return;
       }
+      if (e.type === 'portal' && !shot.ported && Math.hypot(b.x - e.ax, b.y - e.ay) < Math.max(e.r, 14 / view.scale)) {
+        shot.ported = true; e.flash = 1; const [sx, sy] = toScreen(e.ax, e.ay); burst(sx, sy, '#b58cff', 16);
+        b.x = e.bx; b.y = e.by; b.vx = Math.max(b.vx, shot.v0 * 0.45); view.trail.push([b.x, b.y]);
+        const [tx, ty] = toScreen(e.bx, e.by); burst(tx, ty, '#7ff6ff', 18); floatText(tx, ty - 26, 'Zeitsprung! Weiter vorn', '#d6b8ff', 16); sfx('boost');
+      }
+      if (e.type === 'tornado' && !shot.twisted && Math.abs(b.x - e.at) < Math.max(e.w, 12 / view.scale) && b.y < e.h) {
+        shot.twisted = true; e.spin = 1; b.vy = Math.max(b.vy, 0) + shot.v0 * 0.5; b.vx *= 0.72;
+        const [sx, sy] = toScreen(b.x, b.y); floatText(sx, sy - 26, 'Wirbelsturm! Hoch hinaus', '#c8e6ff', 16); sfx('boost');
+      }
+      if (e.type === 'comet' && !e.got) { const p = cometPos(e); if (Math.hypot(b.x - p.x, b.y - p.y) < Math.max(e.r, 14 / view.scale)) {
+        e.got = true; const g = 6 * J.shotGold(s, Math.max(shot.predD, 0.05)); shot.bonus += g; const [sx, sy] = toScreen(p.x, p.y);
+        floatText(sx, sy - 22, 'Sternschnuppe! +' + J.fmtNum(g) + ' Gold', '#fff3a0', 17); burst(sx, sy, '#fff3a0', 22); burst(sx, sy, '#7ff6ff', 12); sfx('perfect'); } }
       if (e && e.type === 'mole' && !shot.moled && b.y <= 0 && b.vy < 0 && Math.abs(b.x - e.at) <= Math.max(e.w, 10 / view.scale)) {
         shot.moled = true; e.pop = 1; b.y = 1e-6; b.vy = shot.v0 * 0.38; b.vx = Math.max(b.vx * 0.8, shot.v0 * 0.3);
         const [sx, sy] = toScreen(e.at, 0); floatText(sx, sy - 40, 'Maulwurf! Hoch damit!', '#7ff6ff', 16); burst(sx, sy - 4, '#8a5a2b', 16); sfx('boost');
@@ -454,7 +487,7 @@
     if (e && !e.got && Math.abs(d - e.at) <= e.w) {
       e.got = true; const g = 10 * J.shotGold(s, d); shot.bonus += g; floatText(lx, view.groundY - 90, 'Schatz! +' + J.fmtNum(g) + ' Gold', '#ffd23f', 17); sfx('perfect');
     }
-    const total = (J.shotGold(s, d) + shot.starGold + shot.birdGold + shot.bonus) * (shot.ammo === 'gold' ? 3 + J.W(s, 'goldguss') : 1);
+    const total = (J.shotGold(s, d) + shot.starGold + shot.birdGold + shot.bonus) * (shot.ammo === 'gold' ? 3 + J.W(s, 'goldguss') : 1) * (evOf('goldrush') ? 2 : 1);
     s.gold += total; s.shots++;
     const wasOpen = J.jumpUnlocked(s), couldJump = J.jumpPreview(s).can;
     const newRec = d > s.runRec;
@@ -618,7 +651,7 @@
     view.shake = Math.max(0, view.shake - dt);
     { const e = evOf('bird'); if (e && e.fly && !e.fly.hit) { const f = e.fly, w = view.time * 0.9 + f.ph; f.x = e.cx + Math.cos(w) * e.rad; f.y = e.cy + Math.sin(w) * e.rad * 0.6; f.vx = -Math.sin(w); } }
     if (phase !== 'flight' && phase !== 'land') view.flyers = birdFlyers();
-    view.events.forEach(e => { if (e.pop) e.pop = Math.max(0, e.pop - dt * 1.2); if (e.snap) e.snap = Math.max(0, e.snap - dt * 0.8); });
+    view.events.forEach(e => { if (e.pop) e.pop = Math.max(0, e.pop - dt * 1.2); if (e.snap) e.snap = Math.max(0, e.snap - dt * 0.8); if (e.flash) e.flash = Math.max(0, e.flash - dt * 1.5); if (e.spin) e.spin = Math.max(0, e.spin - dt); });
     if (view.goodFx) { view.goodFx.t += rdt; if (view.goodFx.t > 0.8) view.goodFx = null; }
     if (view.intro) { view.intro.t += dt; if (view.intro.t > 2.4) view.intro = null; }
     if (chal && chal.reward) chal.reward.t += rdt;
